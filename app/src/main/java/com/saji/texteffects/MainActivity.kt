@@ -7,6 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -71,7 +77,11 @@ private val effects = listOf(
     TextEffect("Fire", "Flame", Color(0xFFFF874D)),
     TextEffect("Outline", "Stroke", Color(0xFFB9A4FF)),
     TextEffect("Shadow", "Soft", Color(0xFF9DA8C4)),
-    TextEffect("Retro", "Vibe", Color(0xFFFFD36E))
+    TextEffect("Retro", "Vibe", Color(0xFFFFD36E)),
+    TextEffect("Pulse", "Beat", Color(0xFF70F0D0)),
+    TextEffect("Bounce", "Motion", Color(0xFFFFB86B)),
+    TextEffect("Shake", "Jitter", Color(0xFFFF668F)),
+    TextEffect("Typewriter", "Reveal", Color(0xFFB9A4FF))
 )
 
 class MainActivity : ComponentActivity() {
@@ -88,6 +98,11 @@ STAND OUT") }
     var selected by remember { mutableStateOf("Neon") }
     var intensity by remember { mutableFloatStateOf(0.75f) }
     var fontSize by remember { mutableFloatStateOf(42f) }
+    var animationEnabled by remember { mutableStateOf(true) }
+    var clipPosition by remember { mutableFloatStateOf(2f) }
+    var clipDuration by remember { mutableFloatStateOf(12f) }
+    var rotation by remember { mutableFloatStateOf(0f) }
+    var scale by remember { mutableFloatStateOf(1f) }
     var videoUri by remember { mutableStateOf<Uri?>(null) }
     val videoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -153,7 +168,7 @@ STAND OUT") }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("PREVIEW", color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, letterSpacing = 4.sp)
                             Spacer(Modifier.height(26.dp))
-                            EffectPreview(text, selected, fontSize, intensity)
+                            EffectPreview(text, selected, fontSize, intensity, animationEnabled, rotation, scale)
                             Spacer(Modifier.height(26.dp))
                             Text("Your text preview appears here", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp)
                         }
@@ -206,6 +221,26 @@ STAND OUT") }
                 }
 
                 Spacer(Modifier.height(18.dp))
+                SectionTitle("ANIMATION TIMELINE", "Set timing and keyframes")
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { animationEnabled = !animationEnabled }, colors = ButtonDefaults.buttonColors(containerColor = if (animationEnabled) Accent else Panel), shape = RoundedCornerShape(10.dp)) { Text(if (animationEnabled) "Ⅱ Pause" else "▶ Play") }
+                    Text("Duration: " + clipDuration.toInt() + "s", color = Muted, fontSize = 11.sp)
+                }
+                Slider(value = clipPosition, onValueChange = { clipPosition = it }, valueRange = 0f..clipDuration)
+                Text("Keyframes", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Start", "Middle", "End").forEachIndexed { index, label ->
+                        val value = when (index) { 0 -> 0f; 1 -> clipDuration / 2f; else -> clipDuration }
+                        Button(onClick = { clipPosition = value; scale = if (index == 1) 1.18f else 1f; rotation = if (index == 1) -4f else 0f }, colors = ButtonDefaults.buttonColors(containerColor = if (kotlin.math.abs(clipPosition - value) < 0.2f) Accent else Panel), shape = RoundedCornerShape(9.dp)) { Text(label, fontSize = 11.sp) }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                SectionTitle("MOTION CONTROLS", "Transform your text")
+                Text("Scale: " + scale.toString() + "x", color = Color.White, fontSize = 12.sp)
+                Slider(value = scale, onValueChange = { scale = it }, valueRange = 0.5f..1.8f)
+                Text("Rotation: " + rotation.toInt() + " degrees", color = Color.White, fontSize = 12.sp)
+                Slider(value = rotation, onValueChange = { rotation = it }, valueRange = -30f..30f)
+                Spacer(Modifier.height(18.dp))
                 SectionTitle("ADJUST", "Fine-tune your style")
                 Text("Effect intensity", color = Color.White, fontSize = 13.sp)
                 Slider(value = intensity, onValueChange = { intensity = it }, modifier = Modifier.fillMaxWidth())
@@ -214,7 +249,7 @@ STAND OUT") }
 
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = { text = "MAKE IT\nSTAND OUT"; selected = "Neon"; intensity = 0.75f; fontSize = 42f },
+                    Button(onClick = { text = "MAKE IT\nSTAND OUT"; selected = "Neon"; intensity = 0.75f; fontSize = 42f; animationEnabled = true; clipPosition = 2f; clipDuration = 12f; rotation = 0f; scale = 1f },
                         colors = ButtonDefaults.buttonColors(containerColor = Panel), shape = RoundedCornerShape(12.dp)) {
                         Text("Reset")
                     }
@@ -226,7 +261,7 @@ STAND OUT") }
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                Text("MVP preview build • Video import + text overlay preview • Export is not enabled yet",
+                Text("Phase 2 preview • Motion effects + timeline controls • MP4 export is still in development",
                     color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(20.dp))
             }
@@ -244,9 +279,15 @@ private fun SectionTitle(title: String, subtitle: String) {
 }
 
 @Composable
-private fun EffectPreview(text: String, effect: String, size: Float, intensity: Float) {
+private fun EffectPreview(text: String, effect: String, size: Float, intensity: Float, animationEnabled: Boolean = true, rotation: Float = 0f, scale: Float = 1f) {
+    val transition = rememberInfiniteTransition(label = "textEffect")
+    val motion by transition.animateFloat(initialValue = 0f, targetValue = 1f, animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse), label = "motion")
     val glow = 8f + intensity * 28f
     val base = when (effect) {
+        "Pulse" -> Color(0xFF70F0D0)
+        "Bounce" -> Color(0xFFFFB86B)
+        "Shake" -> Color(0xFFFF668F)
+        "Typewriter" -> Color(0xFFB9A4FF)
         "Neon" -> Color(0xFF78E9FF)
         "3D" -> Color(0xFFFFC078)
         "Chrome" -> Color(0xFFE8EDF7)
@@ -267,13 +308,23 @@ private fun EffectPreview(text: String, effect: String, size: Float, intensity: 
                 fontWeight = FontWeight.Black, lineHeight = (size * 1.05f).sp,
                 textAlign = TextAlign.Center, modifier = Modifier.padding(end = 4.dp))
         }
+        val displayText = if (effect == "Typewriter" && animationEnabled) text.take((text.length * motion).toInt().coerceIn(1, text.length.coerceAtLeast(1))) else text.ifBlank { "YOUR TEXT" }
         Text(
-            text = text.ifBlank { "YOUR TEXT" },
+            text = displayText,
             fontSize = size.sp,
             lineHeight = (size * 1.05f).sp,
             fontWeight = FontWeight.Black,
             textAlign = TextAlign.Center,
             color = if (effect == "Chrome") Color.White else base,
+            modifier = Modifier.graphicsLayer {
+                val pulse = if (animationEnabled && effect == "Pulse") 0.94f + motion * 0.12f else 1f
+                scaleX = scale * pulse
+                scaleY = scale * pulse
+                rotationZ = rotation
+                translationY = if (animationEnabled && effect == "Bounce") -motion * 14f else 0f
+                translationX = if (animationEnabled && effect == "Shake") (motion - 0.5f) * 12f else 0f
+                alpha = if (animationEnabled && effect == "Glitch") 0.78f + motion * 0.22f else 1f
+            },
             style = when (effect) {
                 "Neon", "Fire" -> TextStyle(shadow = Shadow(base.copy(alpha = intensity), blurRadius = glow))
                 "Outline" -> TextStyle(drawStyle = Stroke(width = 2.5f), shadow = Shadow(base, blurRadius = 5f))
