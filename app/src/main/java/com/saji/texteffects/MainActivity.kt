@@ -37,6 +37,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -53,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
@@ -93,6 +95,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun StudioApp() {
+    val context = LocalContext.current
+    var isExporting by remember { mutableStateOf(false) }
+    var exportStatus by remember { mutableStateOf("Add a video to enable MP4 export") }
     var text by remember { mutableStateOf("MAKE IT\nSTAND OUT") }
     var selected by remember { mutableStateOf("Neon") }
     var intensity by remember { mutableFloatStateOf(0.75f) }
@@ -174,7 +179,7 @@ private fun StudioApp() {
                     }
                     if (videoUri != null) {
                         Box(Modifier.align(Alignment.Center).padding(12.dp)) {
-                            EffectPreview(text, selected, fontSize, intensity)
+                            EffectPreview(text, selected, fontSize, intensity, animationEnabled, rotation, scale)
                         }
                     }
                     Text("9:16", color = Color.White.copy(alpha = 0.55f), fontSize = 10.sp,
@@ -252,15 +257,56 @@ private fun StudioApp() {
                         colors = ButtonDefaults.buttonColors(containerColor = Panel), shape = RoundedCornerShape(12.dp)) {
                         Text("Reset")
                     }
-                    Button(onClick = { /* Export pipeline will be added in the next milestone. */ },
-                        enabled = false,
+                    Button(
+                        onClick = {
+                            videoUri?.let { uri ->
+                                try {
+                                    VideoExportEngine.export(
+                                        context = context,
+                                        inputUri = uri,
+                                        style = TextExportStyle(
+                                            text = text,
+                                            effect = selected,
+                                            fontSize = fontSize,
+                                            intensity = intensity,
+                                            scale = scale,
+                                            rotation = rotation,
+                                            animationDurationSeconds = clipDuration
+                                        ),
+                                        onStarted = {
+                                            isExporting = true
+                                            exportStatus = "Rendering video with text effects..."
+                                        },
+                                        onCompleted = { savedUri ->
+                                            isExporting = false
+                                            exportStatus = "Saved to Gallery: Movies/SAJI Text Effects Studio"
+                                        },
+                                        onError = { message ->
+                                            isExporting = false
+                                            exportStatus = message
+                                        }
+                                    )
+                                } catch (error: Exception) {
+                                    isExporting = false
+                                    exportStatus = "Could not start export: ${error.localizedMessage ?: "unknown error"}"
+                                }
+                            }
+                        },
+                        enabled = videoUri != null && !isExporting,
                         colors = ButtonDefaults.buttonColors(containerColor = Accent),
-                        shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
-                        Text("Export (coming next)")
+                        shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isExporting) "Exporting..." else "Export MP4")
                     }
                 }
+                if (isExporting) {
+                    Spacer(Modifier.height(10.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Accent)
+                }
+                Text(exportStatus, color = if (exportStatus.startsWith("Saved")) Color(0xFF70F0D0) else Muted,
+                    fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
                 Spacer(Modifier.height(24.dp))
-                Text("Phase 2 preview • Motion effects + timeline controls • MP4 export is still in development",
+                Text("Phase 3 • Media3 MP4 export with rendered text overlays",
                     color = Muted, fontSize = 10.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(20.dp))
             }
