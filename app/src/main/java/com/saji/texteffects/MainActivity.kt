@@ -93,8 +93,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun StudioApp() {
-    var text by remember { mutableStateOf("MAKE IT
-STAND OUT") }
+    var text by remember { mutableStateOf("MAKE IT\nSTAND OUT") }
     var selected by remember { mutableStateOf("Neon") }
     var intensity by remember { mutableFloatStateOf(0.75f) }
     var fontSize by remember { mutableFloatStateOf(42f) }
