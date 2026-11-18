@@ -741,6 +741,7 @@ private fun ExportScreen(
     var overlayPosition by remember { mutableStateOf("Bottom") }
     var overlaySize by remember { mutableFloatStateOf(34f) }
     var exporting by remember { mutableStateOf(false) }
+    var extractingAudio by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf(if (videoUris.isEmpty()) "Import a video to start a real export." else "Ready to export ${videoUris.size} video(s).") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -811,6 +812,38 @@ private fun ExportScreen(
             Slider(value = musicVolume, onValueChange = { musicVolume = it }, valueRange = 0f..1f)
             SmallPill("Remove music track", Muted) { onRemoveBackgroundAudio() }
         }
+        Spacer(Modifier.height(7.dp))
+        PrimaryAction(
+            if (extractingAudio) "Extracting audio…" else "Extract audio from first video",
+            videoUris.isNotEmpty() && !exporting && !extractingAudio,
+            {
+                val source = videoUris.firstOrNull()
+                if (source == null) {
+                    status = "Import a video before extracting audio."
+                } else {
+                    extractingAudio = true
+                    status = "Extracting audio from video…"
+                    try {
+                        Media3EditorEngine.extractAudio(
+                            context = context,
+                            source = source,
+                            onExportComplete = {
+                                extractingAudio = false
+                                status = "Audio extracted and saved to Music / SAJI CapCut 2."
+                            },
+                            onExportError = { error ->
+                                extractingAudio = false
+                                status = "Audio extraction failed: $error"
+                            }
+                        )
+                    } catch (error: Exception) {
+                        extractingAudio = false
+                        status = "Could not start audio extraction: ${error.message ?: "Unknown error"}"
+                    }
+                }
+            },
+            Modifier.fillMaxWidth()
+        )
 
         Spacer(Modifier.height(8.dp))
         SettingHeading("Text overlay", "Burn text into the final MP4")
