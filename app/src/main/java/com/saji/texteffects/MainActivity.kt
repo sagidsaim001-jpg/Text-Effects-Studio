@@ -774,13 +774,77 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     }
                 }
             } else {
-                ToolDetailControls(tool, detail)
+                if (tool == "Text") TextStudioControls(detail) else ToolDetailControls(tool, detail)
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             SmallPill("Reset", Muted) { intensity = 0.55f; duration = 0.5f }
             Spacer(Modifier.weight(1f))
             SmallPill("Apply  ✓", Accent)
+        }
+    }
+}
+
+@Composable
+private fun TextStudioControls(detail: String) {
+    var textValue by remember { mutableStateOf("Your story starts here") }
+    var selected by remember { mutableStateOf("Modern") }
+    var fontSize by remember { mutableFloatStateOf(42f) }
+    val choices = when (detail) {
+        "Fonts" -> listOf("Modern", "Classic", "Bold", "Handwriting", "Serif", "Mono")
+        "Effects" -> listOf("Shadow", "Glow", "Outline", "Neon", "3D", "Glitch")
+        "Animation" -> listOf("Fade in", "Pop up", "Typewriter", "Bounce", "Slide", "Loop")
+        "Bubbles" -> listOf("Basic", "Speech", "Comic", "Rounded", "Cloud", "Minimal")
+        "Text templates" -> listOf("Title", "Subtitle", "Vlog", "Lyrics", "Quote", "Minimal")
+        "Auto captions" -> listOf("Auto generate", "Bilingual", "Highlight words", "Caption style", "Speaker")
+        "Text to speech" -> listOf("Voice library", "Male voice", "Female voice", "Speed", "Pitch")
+        "Tracking" -> listOf("Track object", "Attach text", "Reset tracking")
+        else -> listOf("Classic", "Modern", "Minimal", "Bold", "Outline", "Gradient")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        if (detail == "Text editor" || detail == "Add text" || detail == "Style") {
+            Text("TEXT CONTENT", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(5.dp))
+            TextField(
+                value = textValue, onValueChange = { textValue = it },
+                modifier = Modifier.fillMaxWidth().height(54.dp), singleLine = true,
+                textStyle = TextStyle(color = White, fontSize = 13.sp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Panel2, unfocusedContainerColor = Panel2,
+                    focusedTextColor = White, unfocusedTextColor = White,
+                    focusedIndicatorColor = Accent, unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("FONT PRESETS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Modern", "Classic", "Bold", "Handwriting", "Serif").forEach {
+                    SmallPill(it, if (selected == it) Accent else Muted) { selected = it }
+                }
+            }
+            Spacer(Modifier.height(5.dp))
+            Text("Font size: " + fontSize.toInt() + " px", color = White, fontSize = 10.sp)
+            Slider(value = fontSize, onValueChange = { fontSize = it }, valueRange = 12f..100f)
+        } else {
+            Text(("EXPLORE " + detail).uppercase(), color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            choices.chunked(3).forEach { rowItems ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    rowItems.forEach { item ->
+                        Box(Modifier.weight(1f).padding(bottom = 7.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (selected == item) Accent.copy(alpha = 0.18f) else Panel2)
+                            .clickable { selected = item }.padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                            Text(item, color = if (selected == item) Accent else White, fontSize = 10.sp, textAlign = TextAlign.Center)
+                        }
+                    }
+                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            Text("Preview style", color = Muted, fontSize = 9.sp)
+            Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFF193D4A), Panel2))), contentAlignment = Alignment.Center) {
+                Text("SAJI  •  " + selected, color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
