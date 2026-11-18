@@ -915,3 +915,298 @@ private fun CapCutSettingsScreen(onBack: () -> Unit) {
         Text("SAJI CapCut 2  •  UI Foundation", color = Muted, fontSize = 10.sp, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center)
     }
 }
+
+
+@Composable
+private fun ProjectsScreen(
+    onBack: () -> Unit,
+    onOpenProject: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    var category by remember { mutableStateOf("All") }
+    var query by remember { mutableStateOf("") }
+    var selectedActions by remember { mutableStateOf("") }
+    var actionMessage by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 17.dp)) {
+            Spacer(Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("‹", color = White, fontSize = 28.sp, modifier = Modifier.clickable { onBack() })
+                Spacer(Modifier.width(9.dp))
+                Text("Projects", color = White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                SmallPill("＋ New", Accent) { onOpenProject() }
+            }
+            Spacer(Modifier.height(14.dp))
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search your projects") },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Panel,
+                    unfocusedContainerColor = Panel,
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    cursorColor = Accent
+                )
+            )
+            Spacer(Modifier.height(12.dp))
+            HorizontalChips(listOf("All", "Drafts", "Shared", "Trash"), category) { category = it; selectedActions = "" }
+            Spacer(Modifier.height(17.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(if (category == "All") "All projects" else category, color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                SmallPill("Modified ▾", Muted)
+                Spacer(Modifier.width(6.dp))
+                SmallPill("▦", Muted)
+            }
+            Spacer(Modifier.height(9.dp))
+            val projects = listOf(
+                Triple("Untitled project", "Today  •  00:18", "9:16"),
+                Triple("Travel montage", "Yesterday  •  00:32", "16:9"),
+                Triple("Text animation", "Nov 16  •  00:12", "9:16"),
+                Triple("My edit 04", "Nov 14  •  00:45", "1:1"),
+                Triple("Cinematic test", "Nov 12  •  00:27", "16:9")
+            ).filter { it.first.contains(query, ignoreCase = true) }
+            if (category == "Trash") {
+                DetailEmptyState("Trash is empty", "Deleted projects will appear here")
+            } else if (projects.isEmpty()) {
+                DetailEmptyState("No matching projects", "Try another search")
+            } else {
+                projects.forEachIndexed { index, project ->
+                    ProjectManagerRow(project.first, project.second, project.third, index, onOpenProject) {
+                        selectedActions = if (selectedActions == project.first) "" else project.first
+                    }
+                    if (selectedActions == project.first) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            listOf("Rename", "Duplicate", "Share", "Delete").forEach { action ->
+                                SmallPill(action, if (action == "Delete") Color(0xFFFF6D7A) else Muted) {
+                                    actionMessage = action + " UI selected for " + project.first
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (actionMessage.isNotEmpty()) {
+                Text(actionMessage + "  •  Actual project management will be connected later.", color = Accent, fontSize = 9.sp, modifier = Modifier.padding(vertical = 8.dp))
+            }
+            Spacer(Modifier.height(22.dp))
+        }
+        BottomNav("Edit", onNavigate)
+    }
+}
+
+@Composable
+private fun ProjectManagerRow(
+    title: String,
+    info: String,
+    ratio: String,
+    index: Int,
+    onOpen: () -> Unit,
+    onMore: () -> Unit
+) {
+    val palettes = listOf(
+        listOf(Color(0xFF243F50), Color(0xFF70517C)),
+        listOf(Color(0xFFB86A4D), Color(0xFF263C52)),
+        listOf(Color(0xFF302D65), Color(0xFF1C6D78)),
+        listOf(Color(0xFF69503C), Color(0xFF24343D)),
+        listOf(Color(0xFF3A665F), Color(0xFF573E65))
+    )
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(13.dp))
+            .background(Panel).clickable { onOpen() }.padding(9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(width = 62.dp, height = 72.dp).clip(RoundedCornerShape(8.dp)).background(Brush.linearGradient(palettes[index % palettes.size])), contentAlignment = Alignment.Center) {
+            Text("▶", color = White, fontSize = 15.sp)
+            Text(ratio, color = White.copy(alpha = 0.75f), fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(3.dp))
+            Text(info, color = Muted, fontSize = 9.sp)
+            Text("Draft  •  Local project", color = Muted, fontSize = 8.sp)
+        }
+        Text("⋮", color = White, fontSize = 22.sp, modifier = Modifier.clickable { onMore() }.padding(horizontal = 7.dp))
+    }
+}
+
+@Composable
+private fun TemplateDetailScreen(onBack: () -> Unit, onUseTemplate: () -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 17.dp)) {
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = White, fontSize = 29.sp, modifier = Modifier.clickable { onBack() })
+            Spacer(Modifier.width(10.dp))
+            Text("Template preview", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            CircleAction("♡") { }
+            Spacer(Modifier.width(7.dp))
+            CircleAction("↗") { }
+        }
+        Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF294C63), Color(0xFF61466B), Color(0xFFB46D58)))), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("CREATIVE MOMENTS", color = White.copy(alpha = 0.72f), fontSize = 9.sp, letterSpacing = 3.sp)
+                Spacer(Modifier.height(15.dp))
+                Text("MAKE", color = White, fontSize = 34.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+                Text("IT YOURS", color = Accent, fontSize = 36.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                Spacer(Modifier.height(17.dp))
+                Text("▶  Preview template", color = White, fontSize = 11.sp)
+            }
+            SmallPill("TRENDING", White)
+        }
+        Spacer(Modifier.height(15.dp))
+        Text("Cinematic beat sync", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("A fast-paced template with timed cuts, title cards and smooth transitions.", color = Muted, fontSize = 11.sp)
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("00:15", Muted)
+            SmallPill("5 clips", Muted)
+            SmallPill("9:16", Muted)
+            SmallPill("Beat sync", Accent)
+        }
+        Spacer(Modifier.height(18.dp))
+        SectionHeading("Template structure", "5 scenes")
+        Spacer(Modifier.height(9.dp))
+        repeat(5) { index ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(9.dp)).background(Panel).padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(width = 48.dp, height = 42.dp).clip(RoundedCornerShape(6.dp)).background(Brush.linearGradient(listOf(Color(0xFF355A6C + (index * 0x00020202)), Color(0xFF76506A)))), contentAlignment = Alignment.Center) {
+                    Text("▶", color = White, fontSize = 12.sp)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Scene " + (index + 1), color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(if (index == 0) "Opening title" else "Media placeholder", color = Muted, fontSize = 8.sp)
+                }
+                Text("00:03", color = Muted, fontSize = 9.sp)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        PrimaryAction("Use template", true, onUseTemplate, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(23.dp))
+    }
+}
+
+@Composable
+private fun DiscoverSearchScreen(
+    onBack: () -> Unit,
+    onOpenTemplate: () -> Unit,
+    onNavigate: (String) -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Templates") }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 17.dp)) {
+            Spacer(Modifier.height(17.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("‹", color = White, fontSize = 29.sp, modifier = Modifier.clickable { onBack() })
+                Spacer(Modifier.width(10.dp))
+                Text("Search & discover", color = White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.height(13.dp))
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search templates, sounds, effects") },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Panel,
+                    unfocusedContainerColor = Panel,
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    cursorColor = Accent
+                )
+            )
+            Spacer(Modifier.height(12.dp))
+            DetailSearchTabs(listOf("Templates", "Sounds", "Effects", "Fonts", "Stickers"), category) { category = it }
+            Spacer(Modifier.height(18.dp))
+            SectionHeading(if (query.isBlank()) "Popular searches" else "Results for " + query, "See all")
+            Spacer(Modifier.height(8.dp))
+            if (query.isBlank()) {
+                listOf("Beat sync edit", "Cinematic vlog", "Lyrics typography", "Photo dump", "Slow motion").forEach { suggestion ->
+                    Row(Modifier.fillMaxWidth().clickable { query = suggestion }.padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("⌕", color = Muted, fontSize = 16.sp, modifier = Modifier.width(30.dp))
+                        Text(suggestion, color = White, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                        Text("↗", color = Muted, fontSize = 12.sp)
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Line.copy(alpha = 0.55f)))
+                }
+            } else if (category == "Templates") {
+                repeat(3) { index ->
+                    TemplateSearchResult("Template " + (index + 1), "00:15  •  9:16  •  Beat sync", index, onOpenTemplate)
+                }
+            } else {
+                repeat(4) { index ->
+                    SearchAssetRow(category + " result " + (index + 1), "Popular  •  Saved by creators", category)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            SectionHeading("Recommended categories", "")
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Vlog", "Gaming", "Travel", "Music").forEach { SmallPill(it, Muted) { query = it } }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+        BottomNav("Templates", onNavigate)
+    }
+}
+
+@Composable
+private fun DetailSearchTabs(items: List<String>, selected: String, onSelect: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        items.forEach { SmallPill(it, if (selected == it) Accent else Muted) { onSelect(it) } }
+    }
+}
+
+@Composable
+private fun TemplateSearchResult(title: String, info: String, index: Int, onClick: () -> Unit) {
+    val palettes = listOf(
+        listOf(Color(0xFF2B4662), Color(0xFF6C4772)),
+        listOf(Color(0xFFB86A4D), Color(0xFF4A334F)),
+        listOf(Color(0xFF267C78), Color(0xFF26394E))
+    )
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(12.dp)).background(Panel).clickable { onClick() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 58.dp, height = 68.dp).clip(RoundedCornerShape(7.dp)).background(Brush.linearGradient(palettes[index % palettes.size])), contentAlignment = Alignment.Center) {
+            Text("▶", color = White, fontSize = 14.sp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(info, color = Muted, fontSize = 8.sp)
+        }
+        Text("›", color = Accent, fontSize = 20.sp)
+    }
+}
+
+@Composable
+private fun SearchAssetRow(title: String, info: String, category: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Panel).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(35.dp).clip(RoundedCornerShape(8.dp)).background(Panel2), contentAlignment = Alignment.Center) {
+            Text(when (category) {
+                "Sounds" -> "♫"
+                "Effects" -> "✦"
+                "Fonts" -> "Aa"
+                else -> "☺"
+            }, color = Accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(info, color = Muted, fontSize = 8.sp)
+        }
+        SmallPill("＋", Accent)
+    }
+}
+
+@Composable
+private fun DetailEmptyState(title: String, subtitle: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("▢", color = DetailMuted, fontSize = 32.sp)
+        Text(title, color = DetailWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = DetailMuted, fontSize = 9.sp)
+    }
+}
