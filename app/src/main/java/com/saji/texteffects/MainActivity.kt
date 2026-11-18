@@ -716,9 +716,9 @@ private fun ExportScreen(
                 val shortSide = when (resolution) { "720p" -> 720; "2K" -> 1440; "4K" -> 2160; else -> 1080 }
                 val fps = frameRate.substringBefore(" ").toIntOrNull() ?: 30
                 try {
-                    Media3EditorEngine.exportVideo(
+                    Media3EditorEngine.exportVideos(
                         context = context,
-                        source = source,
+                        sources = videoUris,
                         settings = VideoRenderSettings(
                             speed = speed,
                             rotationDegrees = rotation,
@@ -922,7 +922,7 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit, 
                     "Format" -> FormatCanvasStudioControls(detail, false)
                     "Canvas" -> FormatCanvasStudioControls(detail, true)
                     "More" -> when (detail) {
-                        "AutoCut Studio" -> AutoCutStudioControls(detail)
+                        "AutoCut Studio" -> AutoCutStudioControls(detail, mediaUris)
                         "Photo Editor" -> PhotoEditorStudioControls(detail, mediaUris.firstOrNull { uri -> isImageUri(context, uri) }, onAddMedia)
                         "Teleprompter" -> TeleprompterStudioControls(detail)
                         else -> MoreToolsDetailedControls(detail)
@@ -2225,28 +2225,40 @@ private fun AutoCutStudioControls(detail: String) {
     var style by remember { mutableStateOf("Beat Sync") }
     var mood by remember { mutableStateOf("Cinematic") }
     var aspect by remember { mutableStateOf("9:16") }
-    var clipCount by remember { mutableStateOf(6) }
     var duration by remember { mutableFloatStateOf(18f) }
     var beatSync by remember { mutableStateOf(true) }
     var keepOriginalAudio by remember { mutableStateOf(false) }
-    var previewReady by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("Select at least two imported videos for a multi-clip AutoCut.") }
+    val context = LocalContext.current
+    val videos = remember(mediaUris) { mediaUris.filter { isVideoUri(context, it) }.take(20) }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Box(Modifier.fillMaxWidth().height(78.dp).clip(RoundedCornerShape(12.dp))
             .background(Brush.linearGradient(listOf(Color(0xFF164C4D), Color(0xFF29365F), Color(0xFF61416C)))).padding(11.dp)) {
             Column(Modifier.align(Alignment.CenterStart)) {
                 Text("SAJI AUTOCUT", color = White, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                Text("Turn clips into a fast edit", color = White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Text("Arrange • Beat sync • Transitions", color = White.copy(alpha = 0.72f), fontSize = 8.sp)
+                Text("Join your clips into one MP4", color = White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Multi-clip sequence • export to Gallery", color = White.copy(alpha = 0.72f), fontSize = 8.sp)
             }
-            SmallPill("6 clips selected", Accent)
+            SmallPill("${videos.size} videos", Accent)
+        }
+        Spacer(Modifier.height(8.dp))
+        if (videos.isEmpty()) {
+            Text("Import videos first using Add media in the editor.", color = Muted, fontSize = 9.sp)
+        } else {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                videos.forEachIndexed { index, uri ->
+                    MediaUriThumbnail(uri, Modifier.size(width = 58.dp, height = 70.dp), label = "Clip ${index + 1}")
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text("EDIT STYLE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-        StudioChoiceGrid(listOf("Beat Sync", "Vlog", "Cinematic", "Travel", "Photo Dump", "Velocity", "Mini Movie", "Story"), style) { style = it; previewReady = false }
+        StudioChoiceGrid(listOf("Beat Sync", "Vlog", "Cinematic", "Travel", "Photo Dump", "Velocity", "Mini Movie", "Story"), style) { style = it }
         Text("MOOD", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("Cinematic", "Energetic", "Chill", "Vintage", "Dreamy").forEach {
-                SmallPill(it, if (mood == it) Accent else Muted) { mood = it; previewReady = false }
+                SmallPill(it, if (mood == it) Accent else Muted) { mood = it }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -2256,19 +2268,44 @@ private fun AutoCutStudioControls(detail: String) {
                 SmallPill(it, if (aspect == it) Accent else Muted) { aspect = it }
             }
         }
-        Spacer(Modifier.height(7.dp))
-        Text("CLIPS INCLUDED  •  $clipCount", color = White, fontSize = 9.sp)
-        Slider(value = clipCount.toFloat(), onValueChange = { clipCount = it.toInt().coerceIn(2, 20) }, valueRange = 2f..20f)
-        Text("TARGET LENGTH  •  \${duration.toInt()} sec", color = White, fontSize = 9.sp)
+        Text("TARGET LENGTH  •  ${duration.toInt()} sec (planned target)", color = White, fontSize = 9.sp)
         Slider(value = duration, onValueChange = { duration = it }, valueRange = 5f..60f)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallPill(if (beatSync) "Beat sync ✓" else "Beat sync", if (beatSync) Accent else Muted) { beatSync = !beatSync }
-            SmallPill(if (keepOriginalAudio) "Keep audio ✓" else "Replace audio", if (keepOriginalAudio) AccentBlue else Muted) { keepOriginalAudio = !keepOriginalAudio }
+            SmallPill(if (beatSync) "Beat markers ON" else "Beat markers OFF", if (beatSync) Accent else Muted) { beatSync = !beatSync }
+            SmallPill(if (keepOriginalAudio) "Keep clip audio" else "Mute clip audio", if (keepOriginalAudio) AccentBlue else Muted) { keepOriginalAudio = !keepOriginalAudio }
         }
         Spacer(Modifier.height(8.dp))
-        PrimaryAction(if (previewReady) "AutoCut layout preview ready ✓" else "Build AutoCut layout preview", true, { previewReady = true }, Modifier.fillMaxWidth())
-        Text(if (previewReady) "Layout settings saved in this preview panel. Real clip analysis and automatic editing will be connected in the activation phase."
-            else "Choose a style and options, then prepare the layout preview. No source clips are edited yet.", color = Muted, fontSize = 8.sp)
+        PrimaryAction(if (exporting) "Building AutoCut…" else "Create AutoCut MP4", videos.size >= 2 && !exporting, {
+            exporting = true
+            status = "Joining ${videos.size} clips…"
+            val speed = when (style) { "Velocity" -> 1.5f; "Cinematic" -> 0.85f; else -> 1f }
+            try {
+                Media3EditorEngine.exportVideos(
+                    context = context,
+                    sources = videos,
+                    settings = VideoRenderSettings(
+                        speed = speed,
+                        aspectRatio = aspect,
+                        removeAudio = !keepOriginalAudio,
+                        resolutionShortSide = 1080,
+                        frameRate = 30
+                    ),
+                    onExportComplete = {
+                        exporting = false
+                        status = "AutoCut complete. MP4 saved in Movies / SAJI CapCut 2."
+                    },
+                    onExportError = { error ->
+                        exporting = false
+                        status = "AutoCut failed: $error"
+                    }
+                )
+            } catch (error: Exception) {
+                exporting = false
+                status = "Could not start AutoCut: ${error.message ?: "Unknown error"}"
+            }
+        }, Modifier.fillMaxWidth())
+        Text(status, color = if (status.contains("complete")) Accent else Muted, fontSize = 8.sp)
+        Text("Current AutoCut concatenates clips in selection order. Beat analysis, timed cuts and transition effects are not included yet.", color = Muted, fontSize = 8.sp)
     }
 }
 
