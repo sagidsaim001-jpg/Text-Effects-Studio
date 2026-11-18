@@ -367,6 +367,78 @@ object Media3EditorEngine {
         }
     }
 
+    fun extractAudio(
+        context: Context,
+        source: Uri,
+        onExportComplete: (Uri) -> Unit,
+        onExportError: (String) -> Unit
+    ): Transformer {
+        val audioOnlyItem = EditedMediaItem.Builder(MediaItem.fromUri(source))
+            .setRemoveVideo(true)
+            .build()
+        val outputFile = File(context.cacheDir, "saji_audio_${System.currentTimeMillis()}.m4a")
+        val listener = object : Transformer.Listener {
+            override fun onCompleted(composition: androidx.media3.transformer.Composition, result: ExportResult) {
+                try {
+                    val savedUri = publishAudio(context, outputFile)
+                    outputFile.delete()
+                    onExportComplete(savedUri)
+                } catch (error: Exception) {
+                    outputFile.delete()
+                    onExportError(error.message ?: "Audio extracted but saving failed.")
+                }
+            }
+
+            override fun onError(
+                composition: androidx.media3.transformer.Composition,
+                result: ExportResult,
+                exception: ExportException
+            ) {
+                outputFile.delete()
+                onExportError(exception.message ?: "Audio extraction failed. The selected video may not contain an audio track.")
+            }
+        }
+        val transformer = Transformer.Builder(context)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .addListener(listener)
+            .build()
+        transformer.start(audioOnlyItem, outputFile.absolutePath)
+        return transformer
+    }
+
+    private fun publishAudio(context: Context, sourceFile: File): Uri {
+        if (!sourceFile.exists() || sourceFile.length() == 0L) {
+            throw IllegalStateException("The extracted audio file is empty.")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val resolver = context.contentResolver
+            val values = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, "SAJI_Extracted_Audio_${System.currentTimeMillis()}.m4a")
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4")
+                put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/SAJI CapCut 2")
+                put(MediaStore.Audio.Media.IS_PENDING, 1)
+            }
+            val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                ?: throw IllegalStateException("Gallery could not create an audio file.")
+            try {
+                resolver.openOutputStream(uri)?.use { output ->
+                    FileInputStream(sourceFile).use { input -> input.copyTo(output) }
+                } ?: throw IllegalStateException("Music output stream is unavailable.")
+                resolver.update(uri, ContentValues().apply {
+                    put(MediaStore.Audio.Media.IS_PENDING, 0)
+                }, null, null)
+                return uri
+            } catch (error: Exception) {
+                resolver.delete(uri, null, null)
+                throw error
+            }
+        }
+        val folder = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+        val destination = File(folder, "SAJI_Extracted_Audio_${System.currentTimeMillis()}.m4a")
+        sourceFile.copyTo(destination, overwrite = true)
+        return Uri.fromFile(destination)
+    }
+
     private fun publishVideo(context: Context, sourceFile: File): Uri {
         if (!sourceFile.exists() || sourceFile.length() == 0L) {
             throw IllegalStateException("The export file is empty.")
