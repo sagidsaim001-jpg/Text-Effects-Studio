@@ -774,7 +774,11 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     }
                 }
             } else {
-                if (tool == "Text") TextStudioControls(detail) else ToolDetailControls(tool, detail)
+                when (tool) {
+                    "Text" -> TextStudioControls(detail)
+                    "Audio" -> AudioStudioControls(detail)
+                    else -> ToolDetailControls(tool, detail)
+                }
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -844,6 +848,68 @@ private fun TextStudioControls(detail: String) {
             Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp))
                 .background(Brush.horizontalGradient(listOf(Color(0xFF193D4A), Panel2))), contentAlignment = Alignment.Center) {
                 Text("SAJI  •  " + selected, color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioStudioControls(detail: String) {
+    var selected by remember { mutableStateOf("Original") }
+    var volume by remember { mutableFloatStateOf(0.8f) }
+    var fadeIn by remember { mutableFloatStateOf(0.5f) }
+    var fadeOut by remember { mutableFloatStateOf(0.5f) }
+    val choices = when (detail) {
+        "Sounds" -> listOf("Recommended", "Trending", "Vlog", "Cinematic", "Lo-fi", "Saved")
+        "Sound effects" -> listOf("Whoosh", "Impact", "Riser", "Pop", "Transition", "Nature")
+        "Voice effects" -> listOf("Original", "Deep", "Chipmunk", "Robot", "Echo", "Radio")
+        "Beats" -> listOf("Auto detect", "Add beat", "Remove beat", "Beat markers")
+        "Noise reduction" -> listOf("Light", "Standard", "Strong", "Voice focus")
+        "Text to speech" -> listOf("Voice library", "Male voice", "Female voice", "Narration", "Preview voice")
+        "Voiceover" -> listOf("Record voiceover", "Microphone", "Countdown", "Retake")
+        "Extract audio" -> listOf("Import video", "Extract track", "Separate audio")
+        else -> listOf("Original", "Fade in", "Fade out", "Volume", "Stereo", "Normalize")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        if (detail == "Volume" || detail == "Fade" || detail == "Voiceover") {
+            Text("AUDIO TRACK PREVIEW", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(7.dp))
+            Row(Modifier.fillMaxWidth().height(38.dp).clip(RoundedCornerShape(9.dp)).background(Panel2).padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(42) { index ->
+                    Box(Modifier.weight(1f).height((7 + ((index * 17) % 25)).dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (index % 4 == 0) AccentBlue else Accent.copy(alpha = 0.75f)))
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+            Text("Volume  " + (volume * 100).toInt() + "%", color = White, fontSize = 10.sp)
+            Slider(value = volume, onValueChange = { volume = it })
+            Text("Fade in  " + fadeIn + "s", color = White, fontSize = 10.sp)
+            Slider(value = fadeIn, onValueChange = { fadeIn = it }, valueRange = 0f..5f)
+            Text("Fade out  " + fadeOut + "s", color = White, fontSize = 10.sp)
+            Slider(value = fadeOut, onValueChange = { fadeOut = it }, valueRange = 0f..5f)
+        } else {
+            Text(("EXPLORE " + detail).uppercase(), color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            choices.chunked(3).forEach { rowItems ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    rowItems.forEach { item ->
+                        Box(Modifier.weight(1f).padding(bottom = 7.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (selected == item) Accent.copy(alpha = 0.18f) else Panel2)
+                            .clickable { selected = item }.padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+                            Text(item, color = if (selected == item) Accent else White, fontSize = 10.sp, textAlign = TextAlign.Center)
+                        }
+                    }
+                    repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            Text("Selected: " + selected, color = Muted, fontSize = 9.sp)
+            Row(Modifier.fillMaxWidth().height(38.dp).clip(RoundedCornerShape(9.dp)).background(Panel2).padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(36) { index ->
+                    Box(Modifier.weight(1f).height((6 + ((index * 13) % 24)).dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (index % 3 == 0) AccentBlue else Accent.copy(alpha = 0.75f)))
+                }
             }
         }
     }
