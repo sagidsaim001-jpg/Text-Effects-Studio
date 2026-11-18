@@ -784,6 +784,8 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     "Captions" -> CaptionsStudioControls(detail)
                     "Stickers" -> StickersStudioControls(detail)
                     "Overlay" -> OverlayStudioControls(detail)
+                    "Speed" -> SpeedStudioControls(detail)
+                    "Animation" -> AnimationStudioControls(detail)
                     else -> ToolDetailControls(tool, detail)
                 }
             }
@@ -1194,6 +1196,104 @@ private fun OverlayStudioControls(detail: String) {
         Text("Overlay scale  " + (50 + scale * 150).toInt() + "%", color = White, fontSize = 9.sp)
         Slider(value = scale, onValueChange = { scale = it })
         Text("Overlay controls preview  •  Not yet connected to clip rendering", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun SpeedStudioControls(detail: String) {
+    var speed by remember { mutableFloatStateOf(1f) }
+    var curve by remember { mutableStateOf("Normal") }
+    var selectedMode by remember { mutableStateOf("Standard") }
+    val presets = listOf("0.1×", "0.25×", "0.5×", "1×", "2×", "4×", "8×")
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("SPEED CONTROL", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Brush.linearGradient(listOf(Color(0xFF173D43), Color(0xFF25243C)))).padding(14.dp)) {
+            Column {
+                Text("Playback speed", color = Muted, fontSize = 10.sp)
+                Text(String.format("%.2f×", speed), color = Accent, fontSize = 29.sp, fontWeight = FontWeight.ExtraBold)
+                Text(if (speed < 1f) "Slow motion" else if (speed > 1f) "Fast motion" else "Original speed", color = White, fontSize = 10.sp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            presets.forEach { preset ->
+                SmallPill(preset, if (selectedMode == preset) Accent else Muted) {
+                    selectedMode = preset
+                    speed = preset.removeSuffix("×").toFloatOrNull() ?: 1f
+                }
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text("Fine tune  •  " + String.format("%.2f×", speed), color = White, fontSize = 10.sp)
+        Slider(value = speed, onValueChange = { speed = it; selectedMode = "Custom" }, valueRange = 0.1f..8f)
+        Text("SPEED CURVE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Normal", "Montage", "Hero", "Bullet", "Jump cut", "Custom").forEach {
+                SmallPill(it, if (curve == it) Accent else Muted) { curve = it }
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text("Curve: $curve", color = White, fontSize = 10.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("Smooth", AccentBlue) { }
+            SmallPill("Reverse", Muted) { }
+            SmallPill("Reset 1×", Muted) { speed = 1f; selectedMode = "1×"; curve = "Normal" }
+        }
+        Text("Speed settings preview only. Clip timing and audio pitch processing will be connected to the export engine later.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun AnimationStudioControls(detail: String) {
+    var selected by remember { mutableStateOf("In") }
+    var preset by remember { mutableStateOf("Fade") }
+    var duration by remember { mutableFloatStateOf(0.5f) }
+    var intensity by remember { mutableFloatStateOf(0.55f) }
+    val choices = when (detail) {
+        "In" -> listOf("Fade", "Slide up", "Slide down", "Zoom in", "Pop", "Bounce", "Spin")
+        "Out" -> listOf("Fade", "Slide left", "Slide right", "Zoom out", "Shrink", "Drop", "Spin")
+        "Combo" -> listOf("Fade + zoom", "Slide + blur", "Pop + bounce", "Spin + scale", "Glitch")
+        "Loop" -> listOf("Pulse", "Float", "Shake", "Heartbeat", "Swing", "Blink")
+        "Keyframe" -> listOf("Add keyframe", "Ease in", "Ease out", "Ease in-out", "Linear", "Delete keyframe")
+        else -> listOf("Fade", "Slide", "Zoom", "Pop", "Bounce", "Spin", "Pulse", "Shake")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("ANIMATION PRESETS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("In", "Out", "Combo", "Loop", "Keyframe").forEach {
+                SmallPill(it, if (selected == it) Accent else Muted) { selected = it }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Choose a preset", color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        choices.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { item ->
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp))
+                        .background(if (preset == item) Color(0xFF17443F) else Panel2)
+                        .border(1.dp, if (preset == item) Accent else Line, RoundedCornerShape(9.dp))
+                        .clickable { preset = item }.padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center) {
+                        Text(item, color = if (preset == item) Accent else White, fontSize = 9.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+        Text("Duration  " + String.format("%.1fs", duration * 3f + 0.1f), color = White, fontSize = 9.sp)
+        Slider(value = duration, onValueChange = { duration = it })
+        Text("Intensity  " + (intensity * 100).toInt() + "%", color = White, fontSize = 9.sp)
+        Slider(value = intensity, onValueChange = { intensity = it })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("Apply to all", AccentBlue) { }
+            SmallPill("Copy animation", Muted) { }
+            SmallPill("Reset", Muted) { preset = "Fade"; duration = 0.5f; intensity = 0.55f }
+        }
+        Text("Animation controls are a UI preview. Timeline keyframes and easing curves are not yet linked to clip rendering.", color = Muted, fontSize = 8.sp)
     }
 }
 
