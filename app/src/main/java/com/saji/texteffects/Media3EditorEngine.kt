@@ -14,7 +14,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.effect.Brightness
 import androidx.media3.effect.Contrast
-import androidx.media3.effect.Effects
+import androidx.media3.transformer.Effects
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.RgbFilter
 import androidx.media3.effect.ScaleAndRotateTransformation
