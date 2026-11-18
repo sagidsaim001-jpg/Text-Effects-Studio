@@ -130,6 +130,94 @@ object Media3EditorEngine {
         return transformer
     }
 
+    fun exportVideos(
+        context: Context,
+        sources: List<Uri>,
+        settings: VideoRenderSettings,
+        onExportComplete: (Uri) -> Unit,
+        onExportError: (String) -> Unit
+    ): Transformer {
+        val selectedSources = sources.distinct().take(20)
+        require(selectedSources.isNotEmpty()) { "Import at least one video clip." }
+
+        val editedItems = selectedSources.map { source ->
+            val clipBuilder = MediaItem.ClippingConfiguration.Builder()
+                .setStartPositionMs(settings.trimStartMs.coerceAtLeast(0L))
+            settings.trimEndMs?.takeIf { it > settings.trimStartMs }?.let {
+                clipBuilder.setEndPositionMs(it)
+            }
+            val mediaItem = MediaItem.Builder()
+                .setUri(source)
+                .setClippingConfiguration(clipBuilder.build())
+                .build()
+
+            val effects = mutableListOf<androidx.media3.common.Effect>()
+            if (settings.rotationDegrees % 360f != 0f) {
+                effects += ScaleAndRotateTransformation.Builder()
+                    .setRotationDegrees(settings.rotationDegrees % 360f).build()
+            }
+            if (settings.brightness != 0f) effects += Brightness(settings.brightness.coerceIn(-1f, 1f))
+            if (settings.contrast != 0f) effects += Contrast(settings.contrast.coerceIn(-1f, 1f))
+            when (settings.filter) {
+                "B&W", "Mono" -> effects += RgbFilter.createGrayscaleFilter()
+                "Invert" -> effects += RgbFilter.createInvertedFilter()
+            }
+            val side = settings.resolutionShortSide.coerceIn(360, 2160)
+            if (side != 1080) effects += Presentation.createForShortSide(side)
+            when (settings.aspectRatio) {
+                "9:16" -> effects += Presentation.createForAspectRatio(9f / 16f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+                "16:9" -> effects += Presentation.createForAspectRatio(16f / 9f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+                "1:1" -> effects += Presentation.createForAspectRatio(1f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+                "4:5" -> effects += Presentation.createForAspectRatio(4f / 5f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP)
+            }
+
+            val builder = EditedMediaItem.Builder(mediaItem)
+                .setEffects(Effects(emptyList(), effects))
+                .setFrameRate(settings.frameRate.coerceIn(24, 60))
+                .setRemoveAudio(settings.removeAudio)
+            val speed = settings.speed.coerceIn(0.25f, 4f)
+            if (speed != 1f) {
+                builder.setSpeed(object : SpeedProvider {
+                    override fun getSpeed(timeUs: Long): Float = speed
+                    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = C.TIME_UNSET
+                })
+            }
+            builder.build()
+        }
+
+        val sequence = androidx.media3.transformer.EditedMediaItemSequence.withAudioAndVideoFrom(editedItems)
+        val composition = androidx.media3.transformer.Composition.Builder(sequence).build()
+        val outputFile = File(context.cacheDir, "saji_autocut_${System.currentTimeMillis()}.mp4")
+        val listener = object : Transformer.Listener {
+            override fun onCompleted(composition: androidx.media3.transformer.Composition, result: ExportResult) {
+                try {
+                    val savedUri = publishVideo(context, outputFile)
+                    outputFile.delete()
+                    onExportComplete(savedUri)
+                } catch (error: Exception) {
+                    outputFile.delete()
+                    onExportError(error.message ?: "AutoCut finished but saving failed.")
+                }
+            }
+
+            override fun onError(
+                composition: androidx.media3.transformer.Composition,
+                result: ExportResult,
+                exception: ExportException
+            ) {
+                outputFile.delete()
+                onExportError(exception.message ?: "Multi-clip export failed. Try clips with compatible formats.")
+            }
+        }
+        val transformer = Transformer.Builder(context)
+            .setVideoMimeType(MimeTypes.VIDEO_H264)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .addListener(listener)
+            .build()
+        transformer.start(composition, outputFile.absolutePath)
+        return transformer
+    }
+
     private fun publishVideo(context: Context, sourceFile: File): Uri {
         if (!sourceFile.exists() || sourceFile.length() == 0L) {
             throw IllegalStateException("The export file is empty.")
