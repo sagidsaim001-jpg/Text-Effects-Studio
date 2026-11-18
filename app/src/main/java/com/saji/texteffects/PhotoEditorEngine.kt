@@ -80,7 +80,12 @@ object PhotoEditorEngine {
             matrix.postConcat(channelMatrix(0.94f, 1.02f, 1.12f))
         } else if (settings.filter == "Warm") {
             matrix.postConcat(channelMatrix(1.12f, 1.02f, 0.9f))
-        } else if (settings.filter == "Invert") {
+        }
+        if (settings.warmth != 0f) {
+            val warm = settings.warmth.coerceIn(-1f, 1f)
+            matrix.postConcat(channelMatrix(1f + warm * 0.16f, 1f, 1f - warm * 0.16f))
+        }
+        if (settings.filter == "Invert") {
             matrix.postConcat(ColorMatrix(floatArrayOf(
                 -1f, 0f, 0f, 0f, 255f,
                 0f, -1f, 0f, 0f, 255f,
