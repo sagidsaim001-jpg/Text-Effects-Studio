@@ -646,16 +646,23 @@ private fun ExportScreen(
     val context = LocalContext.current
     var resolution by remember { mutableStateOf("1080p") }
     var frameRate by remember { mutableStateOf("30 fps") }
-    var codeRate by remember { mutableFloatStateOf(0.65f) }
-    var smartHdr by remember { mutableStateOf(false) }
-    var opticalFlow by remember { mutableStateOf(false) }
     var speed by remember { mutableFloatStateOf(1f) }
     var rotation by remember { mutableFloatStateOf(0f) }
     var brightness by remember { mutableFloatStateOf(0f) }
     var contrast by remember { mutableFloatStateOf(0f) }
+    var saturation by remember { mutableFloatStateOf(0f) }
     var filter by remember { mutableStateOf("Original") }
     var aspect by remember { mutableStateOf("Original") }
+    var trimStartSeconds by remember { mutableFloatStateOf(0f) }
+    var trimEndSeconds by remember { mutableFloatStateOf(0f) }
     var removeAudio by remember { mutableStateOf(false) }
+    var audioVolume by remember { mutableFloatStateOf(1f) }
+    var fadeInSeconds by remember { mutableFloatStateOf(0f) }
+    var fadeOutSeconds by remember { mutableFloatStateOf(0f) }
+    var overlayText by remember { mutableStateOf("") }
+    var overlaySticker by remember { mutableStateOf("") }
+    var overlayPosition by remember { mutableStateOf("Bottom") }
+    var overlaySize by remember { mutableFloatStateOf(34f) }
     var exporting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf(if (videoUris.isEmpty()) "Import a video to start a real export." else "Ready to export ${videoUris.size} video(s).") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
@@ -679,31 +686,73 @@ private fun ExportScreen(
         SettingHeading("Frame rate", "Output frame-rate cap")
         ChoiceRow(listOf("24 fps", "30 fps", "60 fps"), frameRate) { frameRate = it }
         Spacer(Modifier.height(15.dp))
-        SettingHeading("Speed", "Real clip playback speed")
+        SettingHeading("Playback speed", "Applied to each selected clip")
         Text(String.format("%.2f×", speed), color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         Slider(value = speed, onValueChange = { speed = it }, valueRange = 0.25f..4f)
+        SettingHeading("Clip trim", "Same trim range is applied to every selected video. End 0 means full clip.")
+        Text("Start  ${trimStartSeconds.toInt()} sec", color = White, fontSize = 10.sp)
+        Slider(value = trimStartSeconds, onValueChange = { trimStartSeconds = it }, valueRange = 0f..15f)
+        Text("End  ${if (trimEndSeconds <= 0f) "Full clip" else "${trimEndSeconds.toInt()} sec"}", color = White, fontSize = 10.sp)
+        Slider(value = trimEndSeconds, onValueChange = { trimEndSeconds = it }, valueRange = 0f..90f)
         SettingHeading("Rotation", "Counter-clockwise")
         ChoiceRow(listOf("0°", "90°", "180°", "270°"), "${rotation.toInt()}°") { rotation = it.removeSuffix("°").toFloat() }
-        SettingHeading("Video filter", "Real export filters")
-        ChoiceRow(listOf("Original", "B&W", "Invert"), filter) { filter = it }
+        SettingHeading("Video look", "Real Media3 color presets")
+        ChoiceRow(listOf("Original", "B&W", "Invert", "Warm", "Cool", "Vintage", "Fade"), filter) { filter = it }
         SettingHeading("Canvas ratio", "Crop to output aspect ratio")
-        ChoiceRow(listOf("Original", "9:16", "16:9", "1:1", "4:5"), aspect) { aspect = it }
+        ChoiceRow(listOf("Original", "9:16", "16:9", "1:1", "4:5", "3:4"), aspect) { aspect = it }
         SettingHeading("Brightness", "Exposure adjustment")
         Text("${(brightness * 100).toInt()}%", color = White, fontSize = 10.sp)
         Slider(value = brightness, onValueChange = { brightness = it }, valueRange = -1f..1f)
         SettingHeading("Contrast", "Image contrast")
         Text("${(contrast * 100).toInt()}%", color = White, fontSize = 10.sp)
         Slider(value = contrast, onValueChange = { contrast = it }, valueRange = -1f..1f)
-        SettingHeading("Code rate", "Reserved for encoder quality selection")
-        Slider(value = codeRate, onValueChange = { codeRate = it })
+        SettingHeading("Saturation", "Color intensity")
+        Text("${saturation.toInt()}%", color = White, fontSize = 10.sp)
+        Slider(value = saturation, onValueChange = { saturation = it }, valueRange = -100f..100f)
+
+        Spacer(Modifier.height(8.dp))
+        SettingHeading("Audio mix", "Volume and fade are rendered into the exported video")
         ToggleRow("Remove audio", "Export without the source audio track", removeAudio) { removeAudio = it }
-        ToggleRow("Smart HDR", "HDR mode option (requires a supported source and encoder)", smartHdr) { smartHdr = it }
-        ToggleRow("Optical flow", "Frame interpolation is not yet wired to this export preset", opticalFlow) { opticalFlow = it }
+        Text("Clip volume  ${(audioVolume * 100).toInt()}%", color = White, fontSize = 10.sp)
+        Slider(value = audioVolume, onValueChange = { audioVolume = it }, valueRange = 0f..1f)
+        Text("Fade in  ${fadeInSeconds.toInt()} sec", color = White, fontSize = 10.sp)
+        Slider(value = fadeInSeconds, onValueChange = { fadeInSeconds = it }, valueRange = 0f..5f)
+        Text("Fade out  ${fadeOutSeconds.toInt()} sec", color = White, fontSize = 10.sp)
+        Slider(value = fadeOutSeconds, onValueChange = { fadeOutSeconds = it }, valueRange = 0f..5f)
+
+        Spacer(Modifier.height(8.dp))
+        SettingHeading("Text overlay", "Burn text into the final MP4")
+        TextField(
+            value = overlayText,
+            onValueChange = { overlayText = it.take(120) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("Write a title, lyric or caption") },
+            textStyle = TextStyle(color = White, fontSize = 12.sp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Panel2,
+                unfocusedContainerColor = Panel2,
+                focusedTextColor = White,
+                unfocusedTextColor = White,
+                cursorColor = Accent,
+                focusedIndicatorColor = Accent,
+                unfocusedIndicatorColor = Color.Transparent
+            )
+        )
+        Text("Text size  ${overlaySize.toInt()}", color = White, fontSize = 10.sp)
+        Slider(value = overlaySize, onValueChange = { overlaySize = it }, valueRange = 20f..56f)
+        Text("Overlay position", color = Muted, fontSize = 9.sp)
+        ChoiceRow(listOf("Top", "Center", "Bottom"), overlayPosition) { overlayPosition = it }
+        Text("Sticker overlay", color = Muted, fontSize = 9.sp)
+        ChoiceRow(listOf("None", "⭐", "❤️", "🔥", "✨", "🎬"), if (overlaySticker.isEmpty()) "None" else overlaySticker) {
+            overlaySticker = if (it == "None") "" else it
+        }
+
         Spacer(Modifier.height(12.dp))
         Text(status, color = if (status.startsWith("Export complete")) Accent else Muted, fontSize = 10.sp)
         if (exporting) {
             Spacer(Modifier.height(8.dp))
-            Text("Media3 is rendering the selected source video…", color = AccentBlue, fontSize = 10.sp)
+            Text("Media3 is rendering video, overlays and audio effects…", color = AccentBlue, fontSize = 10.sp)
         }
         Spacer(Modifier.height(14.dp))
         PrimaryAction(if (exporting) "Exporting…" else "Export video", videoUris.isNotEmpty() && !exporting, {
@@ -711,6 +760,8 @@ private fun ExportScreen(
             if (source == null) {
                 status = "No video imported. Add a video from the media picker first."
             } else {
+                val trimStartMs = (trimStartSeconds * 1000f).toLong()
+                val trimEndMs = (trimEndSeconds * 1000f).toLong().takeIf { trimEndSeconds > trimStartSeconds && trimEndSeconds > 0f }
                 exporting = true
                 status = "Export started. Keep the app open until it finishes."
                 val shortSide = when (resolution) { "720p" -> 720; "2K" -> 1440; "4K" -> 2160; else -> 1080 }
@@ -724,13 +775,23 @@ private fun ExportScreen(
                             rotationDegrees = rotation,
                             brightness = brightness,
                             contrast = contrast,
+                            saturation = saturation,
                             filter = filter,
                             aspectRatio = aspect,
                             resolutionShortSide = shortSide,
                             frameRate = fps,
-                            removeAudio = removeAudio
+                            trimStartMs = trimStartMs,
+                            trimEndMs = trimEndMs,
+                            removeAudio = removeAudio,
+                            audioVolume = audioVolume,
+                            fadeInMs = (fadeInSeconds * 1000f).toLong(),
+                            fadeOutMs = (fadeOutSeconds * 1000f).toLong(),
+                            overlayText = overlayText,
+                            overlaySticker = overlaySticker,
+                            overlayPosition = overlayPosition,
+                            overlayTextSize = overlaySize * 2f
                         ),
-                        onExportComplete = { uri ->
+                        onExportComplete = {
                             exporting = false
                             status = "Export complete. Saved to Movies / SAJI CapCut 2."
                             onConfirm()
@@ -2221,7 +2282,7 @@ private fun StudioChoiceGrid(items: List<String>, selected: String, onSelect: (S
 }
 
 @Composable
-private fun AutoCutStudioControls(detail: String) {
+private fun AutoCutStudioControls(detail: String, mediaUris: List<Uri>) {
     var style by remember { mutableStateOf("Beat Sync") }
     var mood by remember { mutableStateOf("Cinematic") }
     var aspect by remember { mutableStateOf("9:16") }
