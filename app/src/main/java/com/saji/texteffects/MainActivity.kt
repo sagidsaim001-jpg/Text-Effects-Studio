@@ -60,18 +60,19 @@ private val White = Color(0xFFF6F7FA)
 
 private val editorTools = listOf(
     "Edit", "Audio", "Text", "Stickers", "Overlay", "Effects",
-    "Filters", "Captions", "Format", "Canvas", "More"
+    "Filters", "Transitions", "Captions", "Format", "Canvas", "More"
 )
 
 private val toolOptions = mapOf(
     "Edit" to listOf("Split", "Speed", "Animation", "Style", "Crop", "Rotate", "Mirror", "Freeze", "Stabilize", "Retouch", "Mask", "Tracking", "Cutout", "Adjust", "Opacity", "Volume"),
-    "Clip" to listOf("Replace", "Split", "Speed", "Volume", "Animation", "Adjust", "Mask", "Opacity", "Copy", "Reverse", "Freeze", "Delete"),
+    "Clip" to listOf("Replace", "Split", "Speed", "Volume", "Animation", "Adjust", "Mask", "Opacity", "Copy", "Reverse", "Freeze", "Keyframe", "Delete"),
     "Audio" to listOf("Sounds", "Sound effects", "Extract audio", "Voiceover", "Text to speech", "Beats", "Volume", "Fade", "Voice effects", "Noise reduction"),
     "Text" to listOf("Add text", "Text templates", "Auto captions", "Fonts", "Style", "Effects", "Animation", "Bubbles", "Text to speech", "Tracking"),
     "Stickers" to listOf("Trending", "Emoji", "Decorative", "Labels", "Social", "My stickers", "AI stickers"),
     "Overlay" to listOf("Add overlay", "Mask", "Blend", "Opacity", "Animation", "Tracking", "Remove background"),
     "Effects" to listOf("Video effects", "Body effects", "AI effects", "Trending", "Glitch", "Blur", "Light", "Retro", "Lens", "Distortion"),
     "Filters" to listOf("Trending", "Portrait", "Movie", "Retro", "Food", "Night", "Landscape", "Mono", "Adjust"),
+    "Transitions" to listOf("Basic", "Camera", "MG", "Blur", "Slide", "Mask", "Split", "Light", "3D", "Zoom"),
     "Captions" to listOf("Auto captions", "Manual captions", "Bilingual captions", "Caption templates", "Edit captions", "Text to speech"),
     "Format" to listOf("9:16", "16:9", "1:1", "4:5", "3:4", "Fit", "Fill", "Background"),
     "Canvas" to listOf("Ratio", "Background", "Blur", "Color", "Border", "Round corners"),
@@ -560,7 +561,13 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
         if (detail.isEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 options.forEach { option ->
-                    TrayOption(option) { if (option == "Add overlay" || option == "Add text") onAddMedia() else detail = option }
+                    TrayOption(option) {
+                        when (option) {
+                            "Add overlay" -> onAddMedia()
+                            "Add text" -> detail = "Text editor"
+                            else -> detail = option
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(9.dp))
