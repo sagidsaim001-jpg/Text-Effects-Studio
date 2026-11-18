@@ -50,6 +50,7 @@ data class VideoRenderSettings(
     val trimEndMs: Long? = null,
     val removeAudio: Boolean = false,
     val audioVolume: Float = 1f,
+    val musicVolume: Float = 0.8f,
     val fadeInMs: Long = 0L,
     val fadeOutMs: Long = 0L,
     val overlayText: String = "",
@@ -132,6 +133,7 @@ object Media3EditorEngine {
         context: Context,
         sources: List<Uri>,
         settings: VideoRenderSettings,
+        backgroundAudioUri: Uri? = null,
         onExportComplete: (Uri) -> Unit,
         onExportError: (String) -> Unit
     ): Transformer {
@@ -164,8 +166,30 @@ object Media3EditorEngine {
             builder.build()
         }
 
-        val sequence = androidx.media3.transformer.EditedMediaItemSequence.withAudioAndVideoFrom(editedItems)
-        val composition = androidx.media3.transformer.Composition.Builder(listOf(sequence)).build()
+        val videoSequence = androidx.media3.transformer.EditedMediaItemSequence.withAudioAndVideoFrom(editedItems)
+        val sequences = mutableListOf(videoSequence)
+        if (backgroundAudioUri != null) {
+            val musicItem = EditedMediaItem.Builder(MediaItem.fromUri(backgroundAudioUri))
+                .setRemoveVideo(true)
+                .setEffects(
+                    Effects(
+                        listOf(
+                            GainProcessor(
+                                DefaultGainProvider.Builder(settings.musicVolume.coerceIn(0f, 1f)).build()
+                            )
+                        ),
+                        emptyList()
+                    )
+                )
+                .build()
+            val musicSequence = androidx.media3.transformer.EditedMediaItemSequence
+                .withAudioFrom(listOf(musicItem))
+                .buildUpon()
+                .setIsLooping(true)
+                .build()
+            sequences += musicSequence
+        }
+        val composition = androidx.media3.transformer.Composition.Builder(sequences).build()
         val outputFile = File(context.cacheDir, "saji_autocut_${System.currentTimeMillis()}.mp4")
         val listener = object : Transformer.Listener {
             override fun onCompleted(composition: androidx.media3.transformer.Composition, result: ExportResult) {
