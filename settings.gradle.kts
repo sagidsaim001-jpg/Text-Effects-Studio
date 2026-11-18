@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "SAJI Text Effects Studio"
+rootProject.name = "SAJI CapCut 2"
 include(":app")
