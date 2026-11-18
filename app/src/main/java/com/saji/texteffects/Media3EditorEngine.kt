@@ -1,4 +1,4 @@
-@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@file:OptIn(androidx.media3.common.util.UnstableApi::class)
 
 package com.saji.texteffects
 
@@ -44,8 +44,8 @@ object Media3EditorEngine {
         context: Context,
         source: Uri,
         settings: VideoRenderSettings,
-        onCompleted: (Uri) -> Unit,
-        onError: (String) -> Unit
+        onExportComplete: (Uri) -> Unit,
+        onExportError: (String) -> Unit
     ): Transformer {
         val clipBuilder = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(settings.trimStartMs.coerceAtLeast(0L))
@@ -104,10 +104,10 @@ object Media3EditorEngine {
                 try {
                     val savedUri = publishVideo(context, outputFile)
                     outputFile.delete()
-                    onCompleted(savedUri)
+                    onExportComplete(savedUri)
                 } catch (error: Exception) {
                     outputFile.delete()
-                    onError(error.message ?: "Export finished but saving to Gallery failed.")
+                    onExportError(error.message ?: "Export finished but saving to Gallery failed.")
                 }
             }
 
@@ -117,7 +117,7 @@ object Media3EditorEngine {
                 exception: ExportException
             ) {
                 outputFile.delete()
-                onError(exception.message ?: "Video export failed. Please try a shorter clip or lower resolution.")
+                onExportError(exception.message ?: "Video export failed. Please try a shorter clip or lower resolution.")
             }
         }
 
