@@ -1205,8 +1205,8 @@ private fun SearchAssetRow(title: String, info: String, category: String) {
 @Composable
 private fun DetailEmptyState(title: String, subtitle: String) {
     Column(Modifier.fillMaxWidth().padding(vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("▢", color = DetailMuted, fontSize = 32.sp)
-        Text(title, color = DetailWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(subtitle, color = DetailMuted, fontSize = 9.sp)
+        Text("▢", color = Muted, fontSize = 32.sp)
+        Text(title, color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = Muted, fontSize = 9.sp)
     }
 }
