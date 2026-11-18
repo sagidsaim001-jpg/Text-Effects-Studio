@@ -104,12 +104,12 @@ private fun CapCutTwoApp() {
         Surface(modifier = Modifier.fillMaxSize(), color = Bg) {
             when (page) {
                 "home" -> HomeScreen(
-                    onNewProject = { pickerReturnTo = "editor"; page = "picker" },
+                    onNewProject = { pickerReturnTo = "home"; page = "picker" },
                     onOpenProject = { page = "editor" },
                     onNavigate = { page = it }
                 )
                 "picker" -> MediaPickerScreen(
-                    onBack = { page = if (pickerReturnTo == "editor") "home" else pickerReturnTo },
+                    onBack = { page = pickerReturnTo },
                     onAdd = { page = "editor" }
                 )
                 "editor" -> EditorScreen(
@@ -119,7 +119,7 @@ private fun CapCutTwoApp() {
                 )
                 "templates" -> TemplatesScreen(
                     onBack = { page = "home" },
-                    onUseTemplate = { pickerReturnTo = "editor"; page = "picker" },
+                    onUseTemplate = { pickerReturnTo = "templates"; page = "picker" },
                     onNavigate = { page = it }
                 )
                 "library" -> LibraryScreen(onBack = { page = "home" }, onNavigate = { page = it })
@@ -332,7 +332,7 @@ private fun MediaPickerScreen(onBack: () -> Unit, onAdd: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth().background(Panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(selected.size.toString() + " selected", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            PrimaryAction("Add to project", selected.isNotEmpty()) { onAdd() }
+            PrimaryAction("Add to project", selected.isNotEmpty(), onClick = { onAdd() })
         }
     }
 }
