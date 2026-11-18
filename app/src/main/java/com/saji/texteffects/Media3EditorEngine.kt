@@ -186,7 +186,7 @@ object Media3EditorEngine {
         }
 
         val sequence = androidx.media3.transformer.EditedMediaItemSequence.withAudioAndVideoFrom(editedItems)
-        val composition = androidx.media3.transformer.Composition.Builder(sequence).build()
+        val composition = androidx.media3.transformer.Composition.Builder(listOf(sequence)).build()
         val outputFile = File(context.cacheDir, "saji_autocut_${System.currentTimeMillis()}.mp4")
         val listener = object : Transformer.Listener {
             override fun onCompleted(composition: androidx.media3.transformer.Composition, result: ExportResult) {
