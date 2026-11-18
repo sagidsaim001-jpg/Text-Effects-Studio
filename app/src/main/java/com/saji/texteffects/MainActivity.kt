@@ -780,6 +780,8 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     "Audio" -> AudioStudioControls(detail)
                     "Transitions" -> TransitionsStudioControls(detail)
                     "Filters" -> FiltersStudioControls(detail)
+                    "Effects" -> EffectsStudioControls(detail)
+                    "Captions" -> CaptionsStudioControls(detail)
                     else -> ToolDetailControls(tool, detail)
                 }
             }
@@ -1006,6 +1008,86 @@ private fun FiltersStudioControls(detail: String) {
         }
         Text("Intensity  " + (intensity * 100).toInt() + "%", color = White, fontSize = 10.sp)
         Slider(value = intensity, onValueChange = { intensity = it })
+    }
+}
+
+@Composable
+private fun EffectsStudioControls(detail: String) {
+    var selected by remember(detail) { mutableStateOf("Glow") }
+    var intensity by remember { mutableFloatStateOf(0.7f) }
+    var effectGroup by remember { mutableStateOf("Video") }
+    val effects = when (detail) {
+        "Body effects" -> listOf("Face glow", "Outline", "Body stretch", "Motion trail", "Sparkle", "Aura")
+        "AI effects" -> listOf("AI portrait", "Dream", "Comic", "Anime look", "3D face", "Background")
+        "Glitch" -> listOf("RGB split", "Digital noise", "Signal loss", "Pixel sort", "Scan lines")
+        "Blur" -> listOf("Motion blur", "Gaussian", "Radial", "Zoom blur", "Background blur")
+        "Light" -> listOf("Glow", "Lens flare", "Light leak", "Bokeh", "Flash", "Prism")
+        "Retro" -> listOf("VHS", "Film grain", "Vintage", "Old TV", "Dust", "Flicker")
+        "Lens" -> listOf("Fisheye", "Wide lens", "Chromatic", "Dream lens", "Vignette")
+        "Distortion" -> listOf("Wave", "Ripple", "Warp", "Kaleidoscope", "Liquid")
+        else -> listOf("Glow", "Neon", "3D", "RGB", "Film grain", "Motion blur")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("EFFECT PREVIEW", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(Color(0xFF173F50), Color(0xFF56426C), Color(0xFF9B5C69)))), contentAlignment = Alignment.Center) {
+            Text("SAJI  ✦  " + selected.uppercase(), color = White, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+        }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            listOf("Video", "Body", "AI").forEach { SmallPill(it, if (effectGroup == it) Accent else Muted) { effectGroup = it } }
+        }
+        effects.chunked(3).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { item ->
+                    Box(Modifier.weight(1f).padding(bottom = 5.dp).clip(RoundedCornerShape(8.dp)).background(if (selected == item) Accent.copy(alpha = 0.18f) else Panel2).clickable { selected = item }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(item, color = if (selected == item) Accent else White, fontSize = 9.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        Text("Intensity  " + (intensity * 100).toInt() + "%", color = White, fontSize = 10.sp)
+        Slider(value = intensity, onValueChange = { intensity = it })
+        Text("Effect selected: " + selected + "  •  Preview UI only", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun CaptionsStudioControls(detail: String) {
+    var captionText by remember { mutableStateOf("Your story starts here...") }
+    var selectedStyle by remember { mutableStateOf("Bold highlight") }
+    var language by remember { mutableStateOf("English") }
+    var highlight by remember { mutableStateOf(true) }
+    val styles = listOf("Bold highlight", "Karaoke", "Minimal", "Boxed", "Classic", "Creator")
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("CAPTION EDITOR", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        TextField(value = captionText, onValueChange = { captionText = it }, modifier = Modifier.fillMaxWidth().height(54.dp), singleLine = true, textStyle = TextStyle(color = White, fontSize = 12.sp), colors = TextFieldDefaults.colors(focusedContainerColor = Panel2, unfocusedContainerColor = Panel2, focusedTextColor = White, unfocusedTextColor = White, focusedIndicatorColor = Accent, unfocusedIndicatorColor = Color.Transparent))
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SmallPill("English", if (language == "English") Accent else Muted) { language = "English" }
+            SmallPill("Urdu", if (language == "Urdu") Accent else Muted) { language = "Urdu" }
+            SmallPill("Bilingual", if (language == "Bilingual") Accent else Muted) { language = "Bilingual" }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("STYLE PRESETS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        styles.chunked(3).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { item ->
+                    Box(Modifier.weight(1f).padding(bottom = 5.dp).clip(RoundedCornerShape(8.dp)).background(if (selectedStyle == item) Accent.copy(alpha = 0.18f) else Panel2).clickable { selectedStyle = item }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(item, color = if (selectedStyle == item) Accent else White, fontSize = 9.sp, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Brush.horizontalGradient(listOf(Panel2, Color(0xFF284D5A)))).padding(10.dp), contentAlignment = Alignment.Center) {
+            Text(captionText.ifBlank { "Caption preview" }, color = if (highlight) Accent else White, fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Highlight active word", color = White, fontSize = 9.sp, modifier = Modifier.weight(1f))
+            SmallPill(if (highlight) "ON" else "OFF", if (highlight) Accent else Muted) { highlight = !highlight }
+        }
+        Text("Language: " + language + "  •  " + detail + " panel", color = Muted, fontSize = 8.sp)
     }
 }
 
