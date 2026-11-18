@@ -129,6 +129,7 @@ private fun CapCutTwoApp() {
                     onBack = { page = "editor" },
                     onConfirm = { selectedExportNotice = true }
                 )
+                "settings" -> CapCutSettingsScreen(onBack = { page = "profile" })
                 else -> HomeScreen(
                     onNewProject = { pickerReturnTo = "editor"; page = "picker" },
                     onOpenProject = { page = "editor" },
@@ -472,12 +473,15 @@ private fun TimelinePanel(
         Box(Modifier.fillMaxWidth().height(43.dp)) {
             Row(Modifier.fillMaxSize().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 repeat(7) { index ->
+                    val clipColors = when (index % 4) {
+                        0 -> listOf(Color(0xFF355B68), Color(0xFF76506A))
+                        1 -> listOf(Color(0xFF446B70), Color(0xFF674B69))
+                        2 -> listOf(Color(0xFF3C5B73), Color(0xFF855A60))
+                        else -> listOf(Color(0xFF496B62), Color(0xFF584B73))
+                    }
                     Box(
                         Modifier.width(58.dp).fillMaxHeight().clip(RoundedCornerShape(5.dp))
-                            .background(Brush.linearGradient(listOf(
-                                Color(0xFF355B68 + (index * 0x00030303)),
-                                Color(0xFF76506A - (index * 0x00020202))
-                            )))
+                            .background(Brush.linearGradient(clipColors))
                             .border(if (clipSelected) 1.dp else 0.dp, if (clipSelected) Accent else Color.Transparent, RoundedCornerShape(5.dp))
                             .clickable { onClipClick() },
                         contentAlignment = Alignment.Center
@@ -863,5 +867,38 @@ private fun PrimaryAction(text: String, enabled: Boolean, onClick: () -> Unit, m
         contentAlignment = Alignment.Center
     ) {
         Text(text, color = if (enabled) Bg else Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+
+@Composable
+private fun CapCutSettingsScreen(onBack: () -> Unit) {
+    var language by remember { mutableStateOf("English") }
+    var appearance by remember { mutableStateOf("Dark") }
+    var notifications by remember { mutableStateOf(true) }
+    var haptics by remember { mutableStateOf(true) }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("‹", color = White, fontSize = 30.sp, modifier = Modifier.clickable { onBack() })
+            Spacer(Modifier.width(12.dp))
+            Text("Settings", color = White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(18.dp))
+        SettingHeading("App preferences", "")
+        ProfileRow("文", "Language", language) { language = if (language == "English") "Urdu" else "English" }
+        ProfileRow("◐", "Appearance", appearance) { appearance = if (appearance == "Dark") "System default" else "Dark" }
+        ToggleRow("Notifications", "Product tips and project reminders", notifications) { notifications = it }
+        ToggleRow("Haptic feedback", "Vibration on editing controls", haptics) { haptics = it }
+        Spacer(Modifier.height(16.dp))
+        SettingHeading("Editor settings", "")
+        ProfileRow("▤", "Default video resolution", "1080p") { }
+        ProfileRow("◷", "Default frame rate", "30 fps") { }
+        ProfileRow("▣", "Save exports to", "Movies / SAJI CapCut 2") { }
+        ProfileRow("⌫", "Clear cache", "Temporary files and previews") { }
+        Spacer(Modifier.height(16.dp))
+        SettingHeading("About", "")
+        ProfileRow("ⓘ", "App version", "0.2.0 UI Foundation") { }
+        ProfileRow("♡", "Feedback", "Send suggestions") { }
+        Text("SAJI CapCut 2  •  UI Foundation", color = Muted, fontSize = 10.sp, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center)
     }
 }
