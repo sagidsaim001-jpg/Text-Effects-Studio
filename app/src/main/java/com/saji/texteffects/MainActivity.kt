@@ -254,6 +254,9 @@ private fun TemplatesScreen(onBack: () -> Unit, onUseTemplate: () -> Unit, onSea
 @Composable
 private fun LibraryScreen(onBack: () -> Unit, onNavigate: (String) -> Unit) {
     var category by remember { mutableStateOf("Sounds") }
+    var query by remember { mutableStateOf("") }
+    var effectType by remember { mutableStateOf("Video") }
+    var fontType by remember { mutableStateOf("Popular") }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
             Spacer(Modifier.height(18.dp))
@@ -261,26 +264,161 @@ private fun LibraryScreen(onBack: () -> Unit, onNavigate: (String) -> Unit) {
                 Text("Your library", fontSize = 26.sp, color = White, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
                 CircleAction("＋") { }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
+            TextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text("Search saved assets") },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Panel,
+                    unfocusedContainerColor = Panel,
+                    focusedTextColor = White,
+                    unfocusedTextColor = White,
+                    cursorColor = Accent
+                )
+            )
+            Spacer(Modifier.height(12.dp))
             HorizontalChips(listOf("Sounds", "Effects", "Fonts", "Stickers", "Brand kit"), category) { category = it }
-            Spacer(Modifier.height(20.dp))
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel).padding(22.dp)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (category == "Sounds") "♫" else "✦", color = Accent, fontSize = 36.sp)
+            Spacer(Modifier.height(18.dp))
+            when (category) {
+                "Sounds" -> {
+                    SectionHeading("Saved sounds", "Browse")
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalChips(listOf("All", "Music", "Effects", "Voice"), "All") { }
+                    Spacer(Modifier.height(9.dp))
+                    LibraryAudioRow("Midnight drive", "00:24  •  Chill / Electronic", query)
+                    LibraryAudioRow("Dreamy piano", "00:32  •  Instrumental", query)
+                    LibraryAudioRow("Urban beat", "00:18  •  Hip hop", query)
+                    LibraryAudioRow("Soft ambience", "00:45  •  Ambient", query)
                     Spacer(Modifier.height(10.dp))
-                    Text("Your " + category.lowercase() + " will appear here", color = White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("Save items while editing and find them here later.", color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    SectionHeading("Browse music", "")
+                    ToolExploreCard("Trending tracks", "Popular sounds for short videos", "♫") { }
+                    ToolExploreCard("Sound effects", "Transitions, clicks and atmosphere", "✧") { }
+                    ToolExploreCard("Extracted audio", "Audio from your imported clips", "⇣") { }
+                }
+                "Effects" -> {
+                    SectionHeading("My effects", "Browse")
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalChips(listOf("Video", "Body", "Photo"), effectType) { effectType = it }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        LibraryAssetCard("Glow", "Neon", Modifier.weight(1f))
+                        LibraryAssetCard("Retro", "Film", Modifier.weight(1f))
+                        LibraryAssetCard("Blur", "Motion", Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        LibraryAssetCard("RGB", "Glitch", Modifier.weight(1f))
+                        LibraryAssetCard("Light", "Lens", Modifier.weight(1f))
+                        LibraryAssetCard("3D", "Depth", Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    ToolExploreCard("Effect collections", "Browse saved and downloaded effects", "✦") { }
+                }
+                "Fonts" -> {
+                    SectionHeading("My fonts", "Manage")
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalChips(listOf("Popular", "Classic", "Display", "Handwriting", "Serif"), fontType) { fontType = it }
+                    Spacer(Modifier.height(9.dp))
+                    FontLibraryRow("Classic Bold", "Aa  •  Sans serif", query)
+                    FontLibraryRow("Modern Display", "Aa  •  Display", query)
+                    FontLibraryRow("Handwritten Note", "Aa  •  Handwriting", query)
+                    FontLibraryRow("Editorial Serif", "Aa  •  Serif", query)
+                    ToolExploreCard("Download fonts", "Browse typefaces for your projects", "Aa") { }
+                }
+                "Stickers" -> {
+                    SectionHeading("Saved stickers", "Browse")
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalChips(listOf("All", "Emoji", "Decorative", "Labels", "Social"), "All") { }
+                    Spacer(Modifier.height(10.dp))
+                    repeat(2) { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("✦", "♡", "★", "☀", "♫").forEachIndexed { index, symbol ->
+                                Box(Modifier.weight(1f).height(58.dp).clip(RoundedCornerShape(10.dp)).background(Panel).clickable { }, contentAlignment = Alignment.Center) {
+                                    Text(symbol, color = listOf(Accent, Color(0xFFFFC45C), Color(0xFFFF7595))[index % 3], fontSize = 23.sp)
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    ToolExploreCard("Sticker collection", "Discover decorative packs and labels", "☺") { }
+                }
+                else -> {
+                    SectionHeading("Brand kit", "Edit")
+                    Spacer(Modifier.height(8.dp))
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(14.dp)) {
+                        Column {
+                            Text("Brand colors", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(Accent, AccentBlue, Color(0xFFFFC45C), Color(0xFFFF658A), Color(0xFF8B79FF), Color.White).forEach {
+                                    Box(Modifier.size(32.dp).clip(CircleShape).background(it).border(1.dp, Line, CircleShape).clickable { })
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    SettingHeading("Brand fonts", "")
+                    FontLibraryRow("Brand headline", "Display typeface", query)
+                    FontLibraryRow("Brand body", "Readable sans serif", query)
+                    SettingHeading("Logos and assets", "")
+                    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        LibraryAssetCard("Logo", "Primary", Modifier.weight(1f))
+                        LibraryAssetCard("Logo", "Alternate", Modifier.weight(1f))
+                        LibraryAssetCard("Mark", "Icon", Modifier.weight(1f))
+                    }
+                    ToolExploreCard("Add brand assets", "Import logos, colors and fonts", "＋") { }
                 }
             }
-            Spacer(Modifier.height(22.dp))
-            SectionHeading("Recommended", "Browse")
-            Spacer(Modifier.height(10.dp))
-            ToolExploreCard("Music collection", "Browse tracks by mood and genre", "♫") { category = "Sounds" }
-            ToolExploreCard("Text styles", "Keep your favorite fonts together", "Aa") { category = "Fonts" }
-            ToolExploreCard("My effects", "Saved video and body effects", "✧") { category = "Effects" }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
         }
         BottomNav("Library", onNavigate)
+    }
+}
+
+@Composable
+private fun LibraryAudioRow(title: String, meta: String, query: String) {
+    if (query.isNotBlank() && !title.contains(query, ignoreCase = true)) return
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Panel).padding(9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF1A514B)), contentAlignment = Alignment.Center) {
+            Text("♫", color = Accent, fontSize = 18.sp)
+        }
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(meta, color = Muted, fontSize = 8.sp)
+        }
+        SmallPill("＋", Accent)
+        Spacer(Modifier.width(5.dp))
+        Text("⋮", color = Muted, fontSize = 18.sp)
+    }
+}
+
+@Composable
+private fun FontLibraryRow(title: String, meta: String, query: String) {
+    if (query.isNotBlank() && !title.contains(query, ignoreCase = true)) return
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Panel).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 48.dp, height = 42.dp).clip(RoundedCornerShape(7.dp)).background(Panel2), contentAlignment = Alignment.Center) {
+            Text("Aa", color = Accent, fontSize = 18.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.width(9.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(meta, color = Muted, fontSize = 8.sp)
+        }
+        SmallPill("Use", Accent)
+    }
+}
+
+@Composable
+private fun LibraryAssetCard(title: String, meta: String, modifier: Modifier) {
+    Column(modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(10.dp)).background(Panel).clickable { }.padding(8.dp)) {
+        Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(7.dp)).background(Brush.linearGradient(listOf(Color(0xFF315766), Color(0xFF6B4E77)))), contentAlignment = Alignment.Center) {
+            Text(title, color = White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(meta, color = Muted, fontSize = 8.sp)
     }
 }
 
