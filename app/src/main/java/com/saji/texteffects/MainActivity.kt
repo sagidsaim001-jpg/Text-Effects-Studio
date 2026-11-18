@@ -2,11 +2,15 @@ package com.saji.texteffects
 
 import android.os.Bundle
 import android.content.Context
+import android.content.ContentValues
+import android.content.Intent
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.provider.MediaStore
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -131,6 +135,57 @@ private fun CapCutTwoApp() {
         )
     }
     val context = LocalContext.current
+    var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraCaptureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pending = pendingPhotoUri
+        val returnedUri = pending ?: result.data?.data ?: result.data?.clipData?.getItemAt(0)?.uri
+        if (result.resultCode == android.app.Activity.RESULT_OK && returnedUri != null) {
+            if (pending != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                context.contentResolver.update(
+                    pending,
+                    ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) },
+                    null,
+                    null
+                )
+            }
+            projectMedia = (projectMedia + returnedUri).distinct()
+            page = "editor"
+        } else if (pending != null) {
+            context.contentResolver.delete(pending, null, null)
+        }
+        pendingPhotoUri = null
+    }
+    val launchDeviceCapture: (String) -> Unit = { captureMode ->
+        try {
+            val intent = if (captureMode == "Photo") {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, "SAJI_Capture_${System.currentTimeMillis()}.jpg")
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/SAJI CapCut 2")
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
+                }
+                val output = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: throw IllegalStateException("Could not prepare a photo destination.")
+                pendingPhotoUri = output
+                Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                    putExtra(MediaStore.EXTRA_OUTPUT, output)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                }
+            } else {
+                Intent(MediaStore.ACTION_VIDEO_CAPTURE).apply {
+                    putExtra(MediaStore.EXTRA_DURATION_LIMIT, 180)
+                }
+            }
+            cameraCaptureLauncher.launch(intent)
+        } catch (error: Exception) {
+            pendingPhotoUri?.let { context.contentResolver.delete(it, null, null) }
+            pendingPhotoUri = null
+        }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(
         background = Bg,
@@ -165,7 +220,8 @@ private fun CapCutTwoApp() {
                 )
                 "capture" -> CaptureStudioScreen(
                     onBack = { page = "home" },
-                    onImport = { pickerReturnTo = "capture"; page = "picker" }
+                    onImport = { pickerReturnTo = "capture"; page = "picker" },
+                    onCapture = launchDeviceCapture
                 )
                 "editor" -> EditorScreen(
                     mediaUris = projectMedia,
