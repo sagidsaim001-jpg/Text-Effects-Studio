@@ -30,6 +30,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
 private fun CapCutTwoApp() {
     var page by remember { mutableStateOf("home") }
     var pickerReturnTo by remember { mutableStateOf("editor") }
+    var searchReturnTo by remember { mutableStateOf("home") }
     var selectedExportNotice by remember { mutableStateOf(false) }
 
     MaterialTheme(colorScheme = darkColorScheme(
@@ -107,6 +110,13 @@ private fun CapCutTwoApp() {
                 "home" -> HomeScreen(
                     onNewProject = { pickerReturnTo = "home"; page = "picker" },
                     onOpenProject = { page = "editor" },
+                    onSeeAll = { page = "projects" },
+                    onSearch = { searchReturnTo = "home"; page = "search" },
+                    onNavigate = { page = it }
+                )
+                "projects" -> ProjectsScreen(
+                    onBack = { page = "home" },
+                    onOpenProject = { page = "editor" },
                     onNavigate = { page = it }
                 )
                 "picker" -> MediaPickerScreen(
@@ -120,7 +130,17 @@ private fun CapCutTwoApp() {
                 )
                 "templates" -> TemplatesScreen(
                     onBack = { page = "home" },
-                    onUseTemplate = { pickerReturnTo = "templates"; page = "picker" },
+                    onUseTemplate = { page = "templateDetail" },
+                    onSearch = { searchReturnTo = "templates"; page = "search" },
+                    onNavigate = { page = it }
+                )
+                "templateDetail" -> TemplateDetailScreen(
+                    onBack = { page = "templates" },
+                    onUseTemplate = { pickerReturnTo = "templateDetail"; page = "picker" }
+                )
+                "search" -> DiscoverSearchScreen(
+                    onBack = { page = searchReturnTo },
+                    onOpenTemplate = { page = "templateDetail" },
                     onNavigate = { page = it }
                 )
                 "library" -> LibraryScreen(onBack = { page = "home" }, onNavigate = { page = it })
@@ -132,8 +152,10 @@ private fun CapCutTwoApp() {
                 )
                 "settings" -> CapCutSettingsScreen(onBack = { page = "profile" })
                 else -> HomeScreen(
-                    onNewProject = { pickerReturnTo = "editor"; page = "picker" },
+                    onNewProject = { pickerReturnTo = "home"; page = "picker" },
                     onOpenProject = { page = "editor" },
+                    onSeeAll = { page = "projects" },
+                    onSearch = { searchReturnTo = "home"; page = "search" },
                     onNavigate = { page = it }
                 )
             }
@@ -145,6 +167,8 @@ private fun CapCutTwoApp() {
 private fun HomeScreen(
     onNewProject: () -> Unit,
     onOpenProject: () -> Unit,
+    onSeeAll: () -> Unit,
+    onSearch: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -158,7 +182,7 @@ private fun HomeScreen(
                     Text("SAJI", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
                     Text("CapCut 2", color = White, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
                 }
-                SmallPill("PRO UI", Accent)
+                CircleAction("⌕", onSearch)
                 Spacer(Modifier.width(8.dp))
                 CircleAction("⚙", onClick = { onNavigate("profile") })
             }
@@ -176,7 +200,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(26.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Recent projects", color = White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Text("See all  ›", color = Accent, fontSize = 12.sp, modifier = Modifier.clickable { onOpenProject() })
+                Text("See all  ›", color = Accent, fontSize = 12.sp, modifier = Modifier.clickable { onSeeAll() })
             }
             Spacer(Modifier.height(12.dp))
             ProjectRow("Untitled project", "Today  •  00:18", "9:16", listOf(Color(0xFF243F50), Color(0xFF70517C)), onOpenProject)
@@ -196,13 +220,13 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun TemplatesScreen(onBack: () -> Unit, onUseTemplate: () -> Unit, onNavigate: (String) -> Unit) {
+private fun TemplatesScreen(onBack: () -> Unit, onUseTemplate: () -> Unit, onSearch: () -> Unit, onNavigate: (String) -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
             Spacer(Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Templates", color = White, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                CircleAction("⌕") { }
+                CircleAction("⌕", onSearch)
             }
             Spacer(Modifier.height(14.dp))
             FakeSearch("Search templates, trends and creators")
