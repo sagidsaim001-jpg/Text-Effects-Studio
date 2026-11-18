@@ -135,6 +135,20 @@ private fun CapCutTwoApp() {
         )
     }
     val context = LocalContext.current
+    var backgroundAudioUri by remember { mutableStateOf<Uri?>(null) }
+    val backgroundAudioPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { picked ->
+        if (picked != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    picked,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) { }
+            backgroundAudioUri = picked
+        }
+    }
     var pendingPhotoUri by remember { mutableStateOf<Uri?>(null) }
     val cameraCaptureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -248,6 +262,9 @@ private fun CapCutTwoApp() {
                 "profile" -> ProfileScreen(onBack = { page = "home" }, onNavigate = { page = it })
                 "export" -> ExportScreen(
                     videoUris = projectMedia.filter { isVideoUri(context, it) },
+                    backgroundAudioUri = backgroundAudioUri,
+                    onPickBackgroundAudio = { backgroundAudioPicker.launch(arrayOf("audio/*")) },
+                    onRemoveBackgroundAudio = { backgroundAudioUri = null },
                     noticeShown = selectedExportNotice,
                     onBack = { page = "editor" },
                     onConfirm = { selectedExportNotice = true }
@@ -695,6 +712,9 @@ private fun EditorScreen(
 @Composable
 private fun ExportScreen(
     videoUris: List<Uri>,
+    backgroundAudioUri: Uri?,
+    onPickBackgroundAudio: () -> Unit,
+    onRemoveBackgroundAudio: () -> Unit,
     noticeShown: Boolean,
     onBack: () -> Unit,
     onConfirm: () -> Unit
@@ -713,6 +733,7 @@ private fun ExportScreen(
     var trimEndSeconds by remember { mutableFloatStateOf(0f) }
     var removeAudio by remember { mutableStateOf(false) }
     var audioVolume by remember { mutableFloatStateOf(1f) }
+    var musicVolume by remember { mutableFloatStateOf(0.8f) }
     var fadeInSeconds by remember { mutableFloatStateOf(0f) }
     var fadeOutSeconds by remember { mutableFloatStateOf(0f) }
     var overlayText by remember { mutableStateOf("") }
@@ -775,6 +796,21 @@ private fun ExportScreen(
         Slider(value = fadeInSeconds, onValueChange = { fadeInSeconds = it }, valueRange = 0f..5f)
         Text("Fade out  ${fadeOutSeconds.toInt()} sec", color = White, fontSize = 10.sp)
         Slider(value = fadeOutSeconds, onValueChange = { fadeOutSeconds = it }, valueRange = 0f..5f)
+
+        Spacer(Modifier.height(8.dp))
+        SettingHeading("Background music", "Mix an audio file over the edited video sequence")
+        PrimaryAction(
+            if (backgroundAudioUri == null) "＋ Choose music file" else "Change music file",
+            !exporting,
+            onPickBackgroundAudio,
+            Modifier.fillMaxWidth()
+        )
+        if (backgroundAudioUri != null) {
+            Text("Background track selected", color = Accent, fontSize = 9.sp)
+            Text("Music volume  ${(musicVolume * 100).toInt()}%", color = White, fontSize = 10.sp)
+            Slider(value = musicVolume, onValueChange = { musicVolume = it }, valueRange = 0f..1f)
+            SmallPill("Remove music track", Muted) { onRemoveBackgroundAudio() }
+        }
 
         Spacer(Modifier.height(8.dp))
         SettingHeading("Text overlay", "Burn text into the final MP4")
@@ -840,6 +876,7 @@ private fun ExportScreen(
                             trimEndMs = trimEndMs,
                             removeAudio = removeAudio,
                             audioVolume = audioVolume,
+                            musicVolume = musicVolume,
                             fadeInMs = (fadeInSeconds * 1000f).toLong(),
                             fadeOutMs = (fadeOutSeconds * 1000f).toLong(),
                             overlayText = overlayText,
@@ -847,6 +884,7 @@ private fun ExportScreen(
                             overlayPosition = overlayPosition,
                             overlayTextSize = overlaySize * 2f
                         ),
+                        backgroundAudioUri = backgroundAudioUri,
                         onExportComplete = {
                             exporting = false
                             status = "Export complete. Saved to Movies / SAJI CapCut 2."
