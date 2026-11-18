@@ -79,7 +79,7 @@ private val toolOptions = mapOf(
     "Captions" to listOf("Auto captions", "Manual captions", "Bilingual captions", "Caption templates", "Edit captions", "Text to speech"),
     "Format" to listOf("9:16", "16:9", "1:1", "4:5", "3:4", "Fit", "Fill", "Background"),
     "Canvas" to listOf("Ratio", "Background", "Blur", "Color", "Border", "Round corners"),
-    "More" to listOf("Chroma key", "Remove background", "Stabilize", "Motion blur", "Enhance", "Retouch", "Relight", "Noise reduction", "Flicker removal", "Camera tracking")
+    "More" to listOf("AutoCut Studio", "Photo Editor", "Teleprompter", "Chroma key", "Remove background", "Object eraser", "Stabilize", "Motion blur", "Enhance", "AI upscale", "Retouch", "Relight", "Noise reduction", "Flicker removal", "Camera tracking", "Lens correction", "Color match", "Frame interpolation", "Beat detection", "Audio ducking", "Vocal isolation", "Scene detection", "Smart crop")
 )
 
 class MainActivity : ComponentActivity() {
@@ -790,6 +790,14 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                         "Speed" -> SpeedStudioControls(detail)
                         "Animation" -> AnimationStudioControls(detail)
                         else -> EditStudioControls(detail)
+                    }
+                    "Format" -> FormatCanvasStudioControls(detail, false)
+                    "Canvas" -> FormatCanvasStudioControls(detail, true)
+                    "More" -> when (detail) {
+                        "AutoCut Studio" -> AutoCutStudioControls(detail)
+                        "Photo Editor" -> PhotoEditorStudioControls(detail)
+                        "Teleprompter" -> TeleprompterStudioControls(detail)
+                        else -> MoreToolsDetailedControls(detail)
                     }
                     else -> ToolDetailControls(tool, detail)
                 }
@@ -2057,5 +2065,309 @@ private fun DetailEmptyState(title: String, subtitle: String) {
         Text("▢", color = Muted, fontSize = 32.sp)
         Text(title, color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(subtitle, color = Muted, fontSize = 9.sp)
+    }
+}
+
+ 
+@Composable
+private fun StudioChoiceGrid(items: List<String>, selected: String, onSelect: (String) -> Unit) {
+    items.chunked(4).forEach { row ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            row.forEach { item ->
+                Box(
+                    Modifier.weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selected == item) Color(0xFF17443F) else Panel2)
+                        .border(1.dp, if (selected == item) Accent else Line, RoundedCornerShape(8.dp))
+                        .clickable { onSelect(item) }
+                        .padding(horizontal = 4.dp, vertical = 9.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(item, color = if (selected == item) Accent else White, fontSize = 8.sp, textAlign = TextAlign.Center, maxLines = 2)
+                }
+            }
+            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+        }
+        Spacer(Modifier.height(5.dp))
+    }
+}
+
+@Composable
+private fun AutoCutStudioControls(detail: String) {
+    var style by remember { mutableStateOf("Beat Sync") }
+    var mood by remember { mutableStateOf("Cinematic") }
+    var aspect by remember { mutableStateOf("9:16") }
+    var clipCount by remember { mutableStateOf(6) }
+    var duration by remember { mutableFloatStateOf(18f) }
+    var beatSync by remember { mutableStateOf(true) }
+    var keepOriginalAudio by remember { mutableStateOf(false) }
+    var previewReady by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Box(Modifier.fillMaxWidth().height(78.dp).clip(RoundedCornerShape(12.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF164C4D), Color(0xFF29365F), Color(0xFF61416C)))).padding(11.dp)) {
+            Column(Modifier.align(Alignment.CenterStart)) {
+                Text("SAJI AUTOCUT", color = White, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                Text("Turn clips into a fast edit", color = White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("Arrange • Beat sync • Transitions", color = White.copy(alpha = 0.72f), fontSize = 8.sp)
+            }
+            SmallPill("6 clips selected", Accent)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("EDIT STYLE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        StudioChoiceGrid(listOf("Beat Sync", "Vlog", "Cinematic", "Travel", "Photo Dump", "Velocity", "Mini Movie", "Story"), style) { style = it; previewReady = false }
+        Text("MOOD", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Cinematic", "Energetic", "Chill", "Vintage", "Dreamy").forEach {
+                SmallPill(it, if (mood == it) Accent else Muted) { mood = it; previewReady = false }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("PROJECT FORMAT", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("9:16", "16:9", "1:1", "4:5").forEach {
+                SmallPill(it, if (aspect == it) Accent else Muted) { aspect = it }
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text("CLIPS INCLUDED  •  $clipCount", color = White, fontSize = 9.sp)
+        Slider(value = clipCount.toFloat(), onValueChange = { clipCount = it.toInt().coerceIn(2, 20) }, valueRange = 2f..20f)
+        Text("TARGET LENGTH  •  \${duration.toInt()} sec", color = White, fontSize = 9.sp)
+        Slider(value = duration, onValueChange = { duration = it }, valueRange = 5f..60f)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SmallPill(if (beatSync) "Beat sync ✓" else "Beat sync", if (beatSync) Accent else Muted) { beatSync = !beatSync }
+            SmallPill(if (keepOriginalAudio) "Keep audio ✓" else "Replace audio", if (keepOriginalAudio) AccentBlue else Muted) { keepOriginalAudio = !keepOriginalAudio }
+        }
+        Spacer(Modifier.height(8.dp))
+        PrimaryAction(if (previewReady) "AutoCut layout preview ready ✓" else "Build AutoCut layout preview", true, { previewReady = true }, Modifier.fillMaxWidth())
+        Text(if (previewReady) "Layout settings saved in this preview panel. Real clip analysis and automatic editing will be connected in the activation phase."
+            else "Choose a style and options, then prepare the layout preview. No source clips are edited yet.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun PhotoEditorStudioControls(detail: String) {
+    var tab by remember { mutableStateOf("Adjust") }
+    var preset by remember { mutableStateOf("Original") }
+    var intensity by remember { mutableFloatStateOf(0.5f) }
+    var warmth by remember { mutableFloatStateOf(0.5f) }
+    var vignette by remember { mutableFloatStateOf(0f) }
+    var compare by remember { mutableStateOf(false) }
+    val choices = when (tab) {
+        "Filters" -> listOf("Original", "Cinema", "Warm", "Cool", "Vintage", "Fade", "Mono", "Portrait", "Food", "Night", "Dream")
+        "Retouch" -> listOf("Natural", "Skin smooth", "Detail", "Eyes", "Light balance", "Portrait")
+        "Crop" -> listOf("Original", "9:16", "4:5", "1:1", "3:4", "16:9", "Free")
+        "Background" -> listOf("Blur", "Replace", "Color", "Gradient", "Cutout", "Restore")
+        else -> listOf("Exposure", "Brightness", "Contrast", "Saturation", "Highlights", "Shadows", "Temperature", "Tint", "Sharpness", "Vignette")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Box(Modifier.fillMaxWidth().height(83.dp).clip(RoundedCornerShape(12.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF384F64), Color(0xFF81566B), Color(0xFFBF8A62)))), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (compare) "BEFORE" else "PHOTO PREVIEW", color = White, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Text("Portrait • Color • Details", color = White.copy(alpha = 0.82f), fontSize = 10.sp)
+            }
+            SmallPill(if (compare) "Original" else "Preview", White)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Adjust", "Filters", "Retouch", "Crop", "Background").forEach {
+                SmallPill(it, if (tab == it) Accent else Muted) { tab = it; preset = if (it == "Filters") "Original" else "" }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(tab.uppercase() + " TOOLS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        StudioChoiceGrid(choices, preset) { preset = it }
+        Text("Strength  •  \${(intensity * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Slider(value = intensity, onValueChange = { intensity = it })
+        if (tab == "Adjust" || tab == "Filters") {
+            Text("Warmth  •  \${(warmth * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Slider(value = warmth, onValueChange = { warmth = it })
+            Text("Vignette  •  \${(vignette * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Slider(value = vignette, onValueChange = { vignette = it })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("Compare", AccentBlue) { compare = !compare }
+            SmallPill("Reset", Muted) { preset = "Original"; intensity = 0.5f; warmth = 0.5f; vignette = 0f }
+            SmallPill("Apply preview ✓", Accent) { }
+        }
+        Text("Photo Editor panels are ready. Actual photo processing and saving will be activated after UI completion.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun TeleprompterStudioControls(detail: String) {
+    var script by remember { mutableStateOf("Welcome to SAJI CapCut 2. Today, we are creating something amazing...") }
+    var speed by remember { mutableFloatStateOf(0.45f) }
+    var textSize by remember { mutableFloatStateOf(0.5f) }
+    var countdown by remember { mutableStateOf("3 sec") }
+    var position by remember { mutableStateOf("Center") }
+    var mirror by remember { mutableStateOf(false) }
+    var voiceFollow by remember { mutableStateOf(false) }
+    var previewRunning by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("TELEPROMPTER", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text("Read your script while recording", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+            SmallPill(if (previewRunning) "Preview ON" else "Ready", if (previewRunning) Accent else AccentBlue)
+        }
+        Spacer(Modifier.height(7.dp))
+        TextField(value = script, onValueChange = { script = it }, modifier = Modifier.fillMaxWidth().height(78.dp),
+            textStyle = TextStyle(color = White, fontSize = 11.sp), placeholder = { Text("Paste or write your script...") },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Panel2, unfocusedContainerColor = Panel2,
+                focusedTextColor = White, unfocusedTextColor = White,
+                cursorColor = Accent, focusedIndicatorColor = Accent, unfocusedIndicatorColor = Color.Transparent
+            ))
+        Spacer(Modifier.height(7.dp))
+        Text("SCROLL SPEED  •  \${(speed * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Slider(value = speed, onValueChange = { speed = it })
+        Text("TEXT SIZE  •  \${(textSize * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Slider(value = textSize, onValueChange = { textSize = it })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("3 sec", "5 sec", "10 sec").forEach { SmallPill(it, if (countdown == it) Accent else Muted) { countdown = it } }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Top", "Center", "Bottom").forEach { SmallPill(it, if (position == it) Accent else Muted) { position = it } }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SmallPill(if (mirror) "Mirror ON" else "Mirror OFF", if (mirror) Accent else Muted) { mirror = !mirror }
+            SmallPill(if (voiceFollow) "Voice follow ON" else "Voice follow OFF", if (voiceFollow) AccentBlue else Muted) { voiceFollow = !voiceFollow }
+        }
+        PrimaryAction(if (previewRunning) "Stop reading preview" else "Start reading preview", true, { previewRunning = !previewRunning }, Modifier.fillMaxWidth())
+        Text("Teleprompter controls are UI-ready. Camera recording, voice-follow and automatic scrolling will be connected in the activation phase.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun FormatCanvasStudioControls(detail: String, isCanvas: Boolean) {
+    val ratios = listOf("9:16", "16:9", "1:1", "4:5", "3:4", "2:3", "3:2", "Custom")
+    var ratio by remember(detail, isCanvas) { mutableStateOf(if (detail in ratios) detail else "9:16") }
+    var fitMode by remember(detail, isCanvas) { mutableStateOf(if (detail == "Fill") "Fill" else "Fit") }
+    var background by remember(detail, isCanvas) { mutableStateOf("Blur") }
+    var selectedColor by remember(detail, isCanvas) { mutableStateOf(Color(0xFF17191F)) }
+    var blur by remember { mutableFloatStateOf(0.35f) }
+    var border by remember { mutableFloatStateOf(0.15f) }
+    var roundness by remember { mutableFloatStateOf(0.2f) }
+    val palette = listOf(Color(0xFF08090D), Color(0xFF17191F), Color(0xFF385A70), Color(0xFF70445F), Color(0xFFB78B55), Color(0xFFFFFFFF))
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text(if (isCanvas) "CANVAS DESIGN" else "VIDEO FORMAT", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Box(Modifier.fillMaxWidth().height(79.dp).clip(RoundedCornerShape(12.dp))
+            .background(if (selectedColor == Color(0xFF08090D)) Brush.linearGradient(listOf(Color(0xFF24394F), Color(0xFF58415E))) else Brush.linearGradient(listOf(selectedColor, Color(0xFF283342)))),
+            contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxHeight(0.82f).fillMaxWidth(if (ratio == "16:9") 0.45f else if (ratio == "1:1") 0.32f else 0.24f)
+                .border(1.dp, Accent, RoundedCornerShape(if (isCanvas) 7.dp else 2.dp)))
+            SmallPill(ratio, White)
+        }
+        Spacer(Modifier.height(7.dp))
+        Text("ASPECT RATIO", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ratios.forEach { SmallPill(it, if (ratio == it) Accent else Muted) { ratio = it } }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text("RESIZE MODE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("Fit", "Fill", "Stretch").forEach { SmallPill(it, if (fitMode == it) Accent else Muted) { fitMode = it } }
+        }
+        if (isCanvas || detail == "Background" || detail == "Blur" || detail == "Color") {
+            Spacer(Modifier.height(7.dp))
+            Text("BACKGROUND STYLE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Blur", "Color", "Gradient", "Image").forEach { SmallPill(it, if (background == it) Accent else Muted) { background = it } }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                palette.forEach { color ->
+                    Box(Modifier.size(24.dp).clip(CircleShape).background(color)
+                        .border(1.dp, if (selectedColor == color) Accent else Line, CircleShape).clickable { selectedColor = color })
+                }
+            }
+            Text("Blur strength  •  \${(blur * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Slider(value = blur, onValueChange = { blur = it })
+            Text("Border width  •  \${(border * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Slider(value = border, onValueChange = { border = it })
+            Text("Round corners  •  \${(roundness * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Slider(value = roundness, onValueChange = { roundness = it })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("Reset", Muted) { ratio = "9:16"; fitMode = "Fit"; blur = 0.35f; border = 0.15f; roundness = 0.2f }
+            SmallPill("Apply preview ✓", Accent) { }
+        }
+        Text("Format and canvas settings are fully laid out as UI controls. They will be connected to clip transforms and export in the activation phase.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun MoreToolsDetailedControls(detail: String) {
+    var selected by remember(detail) { mutableStateOf("") }
+    var strength by remember(detail) { mutableFloatStateOf(0.5f) }
+    var refinement by remember(detail) { mutableFloatStateOf(0.4f) }
+    var highQuality by remember { mutableStateOf(true) }
+    val choices = when (detail) {
+        "Chroma key" -> listOf("Pick color", "Green screen", "Blue screen", "Spill removal", "Edge refine", "Shadow")
+        "Remove background" -> listOf("Auto cutout", "Person", "Product", "Hair refine", "Restore", "Erase")
+        "Object eraser" -> listOf("Brush select", "Auto select", "Remove object", "Restore area")
+        "Stabilize" -> listOf("Recommended", "Minimum crop", "Most stable", "Lock horizon")
+        "Motion blur" -> listOf("Directional", "Radial", "Zoom", "Auto", "Custom")
+        "Enhance" -> listOf("Auto enhance", "Face detail", "Low light", "Color", "Texture")
+        "AI upscale" -> listOf("2× upscale", "4× upscale", "Face recovery", "Preserve texture")
+        "Retouch" -> listOf("Natural", "Skin", "Eyes", "Teeth", "Face light", "Detail")
+        "Relight" -> listOf("Auto", "Front light", "Soft light", "Studio", "Back light", "Color light")
+        "Noise reduction" -> listOf("Low", "Medium", "High", "Preserve detail", "Voice cleanup")
+        "Flicker removal" -> listOf("Auto detect", "LED light", "Screen flicker", "Fine tune")
+        "Camera tracking" -> listOf("Track object", "Track face", "Attach text", "Attach overlay", "Reset")
+        "Lens correction" -> listOf("Distortion", "Vignette", "Chromatic aberration", "Auto lens")
+        "Color match" -> listOf("Reference frame", "Match clip", "Copy grade", "Reset")
+        "Frame interpolation" -> listOf("2× frames", "4× frames", "Smooth motion", "Optical flow")
+        "Beat detection" -> listOf("Detect beats", "Mark accents", "Auto markers", "Clear markers")
+        "Audio ducking" -> listOf("Voice priority", "Music ducking", "Auto mix", "Manual")
+        "Vocal isolation" -> listOf("Keep vocals", "Remove vocals", "Instrumental", "Preview mix")
+        "Scene detection" -> listOf("Auto scenes", "Sensitivity", "Add split markers", "Rescan")
+        "Smart crop" -> listOf("9:16", "1:1", "4:5", "16:9", "Track subject")
+        else -> listOf("Auto", "Manual", "Low", "Medium", "High", "Fine tune", "Reset")
+    }
+    val explanation = when (detail) {
+        "Chroma key" -> "Choose a key color, clean spill and refine the subject edge."
+        "Remove background" -> "Separate the foreground subject from the scene."
+        "Object eraser" -> "Mark an unwanted area and refine the selection."
+        "Stabilize" -> "Choose a balance between smooth motion and crop amount."
+        "Motion blur" -> "Choose the blur direction and amount for moving footage."
+        "Enhance", "AI upscale" -> "Preview quality and detail enhancement options."
+        "Retouch", "Relight" -> "Adjust portrait detail and light balance."
+        "Noise reduction" -> "Control noise cleanup while preserving detail."
+        "Flicker removal" -> "Choose a flicker type and correction strength."
+        "Camera tracking" -> "Select a subject and choose what should follow it."
+        "Lens correction" -> "Correct distortion and lens artifacts."
+        "Color match" -> "Choose a reference and match the selected clip look."
+        "Frame interpolation" -> "Create smoother motion with additional frame modes."
+        "Beat detection" -> "Find beat positions and add markers to the timeline."
+        "Audio ducking" -> "Lower background audio when foreground speech is active."
+        "Vocal isolation" -> "Choose which parts of a mix to keep in the preview."
+        "Scene detection" -> "Find scene changes and prepare split markers."
+        "Smart crop" -> "Reframe the subject for a selected aspect ratio."
+        else -> "Customize this tool with a preset and fine controls."
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text(detail.uppercase() + " STUDIO", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(62.dp).clip(RoundedCornerShape(10.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF263A4A), Color(0xFF4A3C59)))), contentAlignment = Alignment.Center) {
+            Text(detail.uppercase() + "  •  PREVIEW", color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(explanation, color = Muted, fontSize = 9.sp)
+        Spacer(Modifier.height(7.dp))
+        StudioChoiceGrid(choices, selected) { selected = it }
+        Text("Strength  •  \${(strength * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Slider(value = strength, onValueChange = { strength = it })
+        Text("Refinement  •  \${(refinement * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Slider(value = refinement, onValueChange = { refinement = it })
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SmallPill(if (highQuality) "Quality ON" else "Quality OFF", if (highQuality) AccentBlue else Muted) { highQuality = !highQuality }
+            SmallPill("Reset", Muted) { selected = ""; strength = 0.5f; refinement = 0.4f }
+            SmallPill("Apply preview ✓", Accent) { }
+        }
+        Text("Detailed control layout is ready. The processing engine for this tool will be activated and tested in the next phase.", color = Muted, fontSize = 8.sp)
     }
 }
