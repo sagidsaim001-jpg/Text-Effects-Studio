@@ -1,12 +1,23 @@
 package com.saji.texteffects
 
 import android.os.Bundle
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.VideoView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +46,9 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,12 +59,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val Bg = Color(0xFF08090D)
 private val Panel = Color(0xFF17191F)
@@ -97,6 +119,18 @@ private fun CapCutTwoApp() {
     var pickerReturnTo by remember { mutableStateOf("editor") }
     var searchReturnTo by remember { mutableStateOf("home") }
     var selectedExportNotice by remember { mutableStateOf(false) }
+    var projectMedia by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val mediaPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(20)
+    ) { picked ->
+        if (picked.isNotEmpty()) projectMedia = (projectMedia + picked).distinct()
+    }
+    val browseDeviceMedia = {
+        mediaPickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+        )
+    }
+    val context = LocalContext.current
 
     MaterialTheme(colorScheme = darkColorScheme(
         background = Bg,
@@ -121,14 +155,20 @@ private fun CapCutTwoApp() {
                     onNavigate = { page = it }
                 )
                 "picker" -> MediaPickerScreen(
+                    mediaUris = projectMedia,
                     onBack = { page = pickerReturnTo },
-                    onAdd = { page = "editor" }
+                    onBrowseDevice = { browseDeviceMedia() },
+                    onAdd = { selected ->
+                        projectMedia = selected
+                        page = "editor"
+                    }
                 )
                 "capture" -> CaptureStudioScreen(
                     onBack = { page = "home" },
                     onImport = { pickerReturnTo = "capture"; page = "picker" }
                 )
                 "editor" -> EditorScreen(
+                    mediaUris = projectMedia,
                     onBack = { page = "home" },
                     onExport = { selectedExportNotice = false; page = "export" },
                     onAddMedia = { pickerReturnTo = "editor"; page = "picker" }
@@ -151,6 +191,7 @@ private fun CapCutTwoApp() {
                 "library" -> LibraryScreen(onBack = { page = "home" }, onNavigate = { page = it })
                 "profile" -> ProfileScreen(onBack = { page = "home" }, onNavigate = { page = it })
                 "export" -> ExportScreen(
+                    videoUris = projectMedia.filter { isVideoUri(context, it) },
                     noticeShown = selectedExportNotice,
                     onBack = { page = "editor" },
                     onConfirm = { selectedExportNotice = true }
@@ -466,72 +507,85 @@ private fun ProfileScreen(onBack: () -> Unit, onNavigate: (String) -> Unit) {
 }
 
 @Composable
-private fun MediaPickerScreen(onBack: () -> Unit, onAdd: () -> Unit) {
-    var tab by remember { mutableStateOf("Videos") }
-    var album by remember { mutableStateOf("All media") }
-    var albumOpen by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf(setOf<Int>()) }
-    val albums = listOf("All media", "Camera", "CapCut", "Downloads", "Favorites", "Screenshots", "WhatsApp")
+private fun MediaPickerScreen(
+    mediaUris: List<Uri>,
+    onBack: () -> Unit,
+    onBrowseDevice: () -> Unit,
+    onAdd: (List<Uri>) -> Unit
+) {
+    val context = LocalContext.current
+    var tab by remember { mutableStateOf("All") }
+    var selected by remember { mutableStateOf(setOf<Uri>()) }
+    LaunchedEffect(mediaUris) { selected = mediaUris.toSet() }
+    val filtered = when (tab) {
+        "Videos" -> mediaUris.filter { isVideoUri(context, it) }
+        "Photos" -> mediaUris.filter { isImageUri(context, it) }
+        else -> mediaUris
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("×", color = White, fontSize = 28.sp, modifier = Modifier.clickable { onBack() })
             Spacer(Modifier.width(18.dp))
             Text("Add media", color = White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("Next", color = if (selected.isNotEmpty()) Accent else Muted, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (selected.isNotEmpty()) onAdd() })
+            Text("Next", color = if (selected.isNotEmpty()) Accent else Muted, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { if (selected.isNotEmpty()) onAdd(mediaUris.filter { selected.contains(it) }) })
         }
-        HorizontalChips(listOf("Videos", "Photos", "Live photos"), tab) { tab = it; selected = emptySet() }
+        HorizontalChips(listOf("All", "Videos", "Photos"), tab) { tab = it }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(album + "  ▾", color = White, fontSize = 13.sp, modifier = Modifier.clickable { albumOpen = !albumOpen })
-            Spacer(Modifier.weight(1f))
-            Text("Select multiple  ▦", color = Muted, fontSize = 11.sp, modifier = Modifier.clickable { selected = if (selected.size == 12) emptySet() else (0..11).toSet() })
+            Text("Device media  •  ${filtered.size} items", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text("Browse device  ＋", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onBrowseDevice() })
         }
-        if (albumOpen) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(12.dp)).background(Panel).padding(9.dp)) {
-                Text("Albums", color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
-                albums.forEach { name ->
-                    Row(Modifier.fillMaxWidth().clickable { album = name; albumOpen = false }.padding(horizontal = 8.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("▧", color = Accent, fontSize = 16.sp, modifier = Modifier.width(32.dp))
-                        Text(name, color = if (album == name) Accent else White, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                        if (album == name) Text("✓", color = Accent, fontSize = 12.sp)
-                    }
-                }
+        if (mediaUris.isEmpty()) {
+            Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("▧", color = Accent, fontSize = 42.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Import your real photos and videos", color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("Android Photo Picker opens without broad storage access.", color = Muted, fontSize = 10.sp)
+                Spacer(Modifier.height(14.dp))
+                PrimaryAction("Browse device", true, onBrowseDevice, Modifier.padding(horizontal = 30.dp).fillMaxWidth())
             }
-        }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {
-            for (rowIndex in 0..3) {
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                    for (columnIndex in 0..2) {
-                        val index = rowIndex * 3 + columnIndex
-                        MediaGridTile(index, tab, selected.contains(index), Modifier.weight(1f)) {
-                            selected = if (selected.contains(index)) selected - index else selected + index
-                        }
-                    }
-                }
-                Spacer(Modifier.height(5.dp))
+        } else if (filtered.isEmpty()) {
+            Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text("No ${tab.lowercase()} imported yet", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                PrimaryAction("Browse device", true, onBrowseDevice, Modifier.padding(20.dp).fillMaxWidth())
             }
-            Spacer(Modifier.height(12.dp))
-            if (selected.isNotEmpty()) {
-                Text(selected.size.toString() + " item(s) selected", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    selected.sorted().forEach { index ->
-                        Box(Modifier.size(54.dp).clip(RoundedCornerShape(7.dp)).background(Brush.linearGradient(listOf(Color(0xFF355B68), Color(0xFF76506A)))), contentAlignment = Alignment.Center) {
-                            Text((index + 1).toString(), color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        } else {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {
+                filtered.chunked(3).forEach { rowItems ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        rowItems.forEach { uri ->
+                            MediaUriTile(
+                                uri = uri,
+                                selected = selected.contains(uri),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    selected = if (selected.contains(uri)) selected - uri else selected + uri
+                                }
+                            )
                         }
+                        repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    Spacer(Modifier.height(5.dp))
                 }
-            } else {
-                Text("Showing sample media layout. Device gallery connection will be enabled in the import phase.", color = Muted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(12.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("${selected.size} item(s) selected", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
         Row(Modifier.fillMaxWidth().background(Panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(selected.size.toString() + " selected", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            PrimaryAction("Add to project", selected.isNotEmpty(), onClick = { onAdd() })
+            Text("${selected.size} selected", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            PrimaryAction("Add to project", selected.isNotEmpty(),
+                onClick = { onAdd(mediaUris.filter { selected.contains(it) }) })
         }
     }
 }
 
 @Composable
-private fun EditorScreen(onBack: () -> Unit, onExport: () -> Unit, onAddMedia: () -> Unit) {
+private fun EditorScreen(
+    mediaUris: List<Uri>,
+    onBack: () -> Unit,
+    onExport: () -> Unit,
+    onAddMedia: () -> Unit
+) {
     var activeTool by remember { mutableStateOf("") }
     var isPlaying by remember { mutableStateOf(false) }
     var clipSelected by remember { mutableStateOf(false) }
@@ -541,17 +595,17 @@ private fun EditorScreen(onBack: () -> Unit, onExport: () -> Unit, onAddMedia: (
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("Untitled project", color = White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                Text("Saved locally  •  9:16", color = Muted, fontSize = 10.sp)
+                Text("${mediaUris.size} imported item(s)  •  Local project", color = Muted, fontSize = 10.sp)
             }
             SmallPill("1080P ▾", Muted)
             Spacer(Modifier.width(8.dp))
             PrimaryAction("Export", true, onExport)
         }
         Box(Modifier.weight(1.15f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp), contentAlignment = Alignment.Center) {
-            PreviewStage(isPlaying)
+            EditorMediaPreview(mediaUris, isPlaying)
         }
         Row(Modifier.fillMaxWidth().height(34.dp).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("00:00 / 00:18", color = Muted, fontSize = 10.sp, modifier = Modifier.weight(1f))
+            Text(if (mediaUris.isEmpty()) "No media imported" else "Imported media  •  ${mediaUris.size}", color = Muted, fontSize = 10.sp, modifier = Modifier.weight(1f))
             Text("⛶", color = White, fontSize = 17.sp, modifier = Modifier.clickable { activeTool = "Format" }.padding(horizontal = 10.dp))
             Text(if (isPlaying) "Ⅱ" else "▶", color = White, fontSize = 20.sp, modifier = Modifier.clickable { isPlaying = !isPlaying }.padding(horizontal = 12.dp))
             Text("↶", color = Muted, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 7.dp))
@@ -577,53 +631,126 @@ private fun EditorScreen(onBack: () -> Unit, onExport: () -> Unit, onAddMedia: (
             }
         }
         if (activeTool.isNotEmpty()) {
-            ToolTray(activeTool, onClose = { activeTool = "" }, onAddMedia = onAddMedia)
+            ToolTray(activeTool, onClose = { activeTool = "" }, onAddMedia = onAddMedia, mediaUris = mediaUris)
         }
     }
 }
 
 @Composable
-private fun ExportScreen(noticeShown: Boolean, onBack: () -> Unit, onConfirm: () -> Unit) {
+private fun ExportScreen(
+    videoUris: List<Uri>,
+    noticeShown: Boolean,
+    onBack: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val context = LocalContext.current
     var resolution by remember { mutableStateOf("1080p") }
     var frameRate by remember { mutableStateOf("30 fps") }
     var codeRate by remember { mutableFloatStateOf(0.65f) }
     var smartHdr by remember { mutableStateOf(false) }
     var opticalFlow by remember { mutableStateOf(false) }
+    var speed by remember { mutableFloatStateOf(1f) }
+    var rotation by remember { mutableFloatStateOf(0f) }
+    var brightness by remember { mutableFloatStateOf(0f) }
+    var contrast by remember { mutableFloatStateOf(0f) }
+    var filter by remember { mutableStateOf("Original") }
+    var aspect by remember { mutableStateOf("Original") }
+    var removeAudio by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf(if (videoUris.isEmpty()) "Import a video to start a real export." else "Ready to export ${videoUris.size} video(s).") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = White, fontSize = 30.sp, modifier = Modifier.clickable { onBack() })
             Spacer(Modifier.width(12.dp))
             Text("Export settings", color = White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(20.dp))
-        Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF213849), Color(0xFF1E1C34), Color(0xFF422B45)))), contentAlignment = Alignment.Center) {
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF213849), Color(0xFF1E1C34), Color(0xFF422B45)))), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("SAJI", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
                 Text("VIDEO EXPORT", color = White, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Final quality preview", color = White.copy(alpha = 0.65f), fontSize = 11.sp)
+                Text("${videoUris.size} video source(s) imported", color = White.copy(alpha = 0.65f), fontSize = 11.sp)
             }
         }
-        Spacer(Modifier.height(22.dp))
-        SettingHeading("Resolution", "Choose output size")
-        ChoiceRow(listOf("480p", "720p", "1080p", "2K", "4K"), resolution) { resolution = it }
-        Spacer(Modifier.height(20.dp))
-        SettingHeading("Frame rate", "Higher FPS can create smoother motion")
-        ChoiceRow(listOf("24 fps", "25 fps", "30 fps", "50 fps", "60 fps"), frameRate) { frameRate = it }
-        Spacer(Modifier.height(20.dp))
-        SettingHeading("Code rate", "Low                                     Recommended")
-        Slider(value = codeRate, onValueChange = { codeRate = it })
-        Text(if (codeRate > 0.8f) "High quality" else if (codeRate > 0.4f) "Recommended" else "Smaller file", color = Muted, fontSize = 11.sp)
+        Spacer(Modifier.height(16.dp))
+        SettingHeading("Resolution", "Output short side")
+        ChoiceRow(listOf("720p", "1080p", "2K", "4K"), resolution) { resolution = it }
         Spacer(Modifier.height(15.dp))
-        ToggleRow("Smart HDR", "Expanded color and contrast", smartHdr) { smartHdr = it }
-        ToggleRow("Optical flow", "Frame interpolation for slow motion", opticalFlow) { opticalFlow = it }
-        Spacer(Modifier.height(18.dp))
-        Text("Estimated file size: calculated after export engine is connected", color = Muted, fontSize = 11.sp)
-        Spacer(Modifier.height(18.dp))
-        PrimaryAction("Export video", true, onConfirm, Modifier.fillMaxWidth())
-        if (noticeShown) {
-            Spacer(Modifier.height(12.dp))
-            Text("Export screen is ready. Video rendering will be connected in a later phase.", color = Accent, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        SettingHeading("Frame rate", "Output frame-rate cap")
+        ChoiceRow(listOf("24 fps", "30 fps", "60 fps"), frameRate) { frameRate = it }
+        Spacer(Modifier.height(15.dp))
+        SettingHeading("Speed", "Real clip playback speed")
+        Text(String.format("%.2f×", speed), color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Slider(value = speed, onValueChange = { speed = it }, valueRange = 0.25f..4f)
+        SettingHeading("Rotation", "Counter-clockwise")
+        ChoiceRow(listOf("0°", "90°", "180°", "270°"), "${rotation.toInt()}°") { rotation = it.removeSuffix("°").toFloat() }
+        SettingHeading("Video filter", "Real export filters")
+        ChoiceRow(listOf("Original", "B&W", "Invert"), filter) { filter = it }
+        SettingHeading("Canvas ratio", "Crop to output aspect ratio")
+        ChoiceRow(listOf("Original", "9:16", "16:9", "1:1", "4:5"), aspect) { aspect = it }
+        SettingHeading("Brightness", "Exposure adjustment")
+        Text("${(brightness * 100).toInt()}%", color = White, fontSize = 10.sp)
+        Slider(value = brightness, onValueChange = { brightness = it }, valueRange = -1f..1f)
+        SettingHeading("Contrast", "Image contrast")
+        Text("${(contrast * 100).toInt()}%", color = White, fontSize = 10.sp)
+        Slider(value = contrast, onValueChange = { contrast = it }, valueRange = -1f..1f)
+        SettingHeading("Code rate", "Reserved for encoder quality selection")
+        Slider(value = codeRate, onValueChange = { codeRate = it })
+        ToggleRow("Remove audio", "Export without the source audio track", removeAudio) { removeAudio = it }
+        ToggleRow("Smart HDR", "HDR mode option (requires a supported source and encoder)", smartHdr) { smartHdr = it }
+        ToggleRow("Optical flow", "Frame interpolation is not yet wired to this export preset", opticalFlow) { opticalFlow = it }
+        Spacer(Modifier.height(12.dp))
+        Text(status, color = if (status.startsWith("Export complete")) Accent else Muted, fontSize = 10.sp)
+        if (exporting) {
+            Spacer(Modifier.height(8.dp))
+            Text("Media3 is rendering the selected source video…", color = AccentBlue, fontSize = 10.sp)
         }
+        Spacer(Modifier.height(14.dp))
+        PrimaryAction(if (exporting) "Exporting…" else "Export video", videoUris.isNotEmpty() && !exporting, {
+            val source = videoUris.firstOrNull()
+            if (source == null) {
+                status = "No video imported. Add a video from the media picker first."
+            } else {
+                exporting = true
+                status = "Export started. Keep the app open until it finishes."
+                val shortSide = when (resolution) { "720p" -> 720; "2K" -> 1440; "4K" -> 2160; else -> 1080 }
+                val fps = frameRate.substringBefore(" ").toIntOrNull() ?: 30
+                try {
+                    Media3EditorEngine.exportVideo(
+                        context = context,
+                        source = source,
+                        settings = VideoRenderSettings(
+                            speed = speed,
+                            rotationDegrees = rotation,
+                            brightness = brightness,
+                            contrast = contrast,
+                            filter = filter,
+                            aspectRatio = aspect,
+                            resolutionShortSide = shortSide,
+                            frameRate = fps,
+                            removeAudio = removeAudio
+                        ),
+                        onExportComplete = { uri ->
+                            exporting = false
+                            status = "Export complete. Saved to Movies / SAJI CapCut 2."
+                            onConfirm()
+                        },
+                        onExportError = { error ->
+                            exporting = false
+                            status = "Export failed: $error"
+                        }
+                    )
+                } catch (error: Exception) {
+                    exporting = false
+                    status = "Could not start export: ${error.message ?: "Unknown error"}"
+                }
+            }
+        }, Modifier.fillMaxWidth())
+        if (noticeShown && !exporting && status.startsWith("Export complete")) {
+            Spacer(Modifier.height(7.dp))
+            Text("Your MP4 is available in Gallery.", color = Accent, fontSize = 11.sp)
+        }
+        Spacer(Modifier.height(20.dp))
     }
 }
 
@@ -731,7 +858,7 @@ private fun EditorToolButton(label: String, selected: Boolean, onClick: () -> Un
 }
 
 @Composable
-private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) {
+private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit, mediaUris: List<Uri>) {
     var detail by remember(tool) { mutableStateOf("") }
     var intensity by remember(tool) { mutableFloatStateOf(0.55f) }
     var duration by remember(tool) { mutableFloatStateOf(0.5f) }
@@ -795,7 +922,7 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     "Canvas" -> FormatCanvasStudioControls(detail, true)
                     "More" -> when (detail) {
                         "AutoCut Studio" -> AutoCutStudioControls(detail)
-                        "Photo Editor" -> PhotoEditorStudioControls(detail)
+                        "Photo Editor" -> PhotoEditorStudioControls(detail, mediaUris.firstOrNull { uri -> isImageUri(LocalContext.current, uri) }, onAddMedia)
                         "Teleprompter" -> TeleprompterStudioControls(detail)
                         else -> MoreToolsDetailedControls(detail)
                     }
@@ -2145,28 +2272,63 @@ private fun AutoCutStudioControls(detail: String) {
 }
 
 @Composable
-private fun PhotoEditorStudioControls(detail: String) {
+private fun PhotoEditorStudioControls(detail: String, imageUri: Uri?, onAddMedia: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf("Adjust") }
     var preset by remember { mutableStateOf("Original") }
     var intensity by remember { mutableFloatStateOf(0.5f) }
     var warmth by remember { mutableFloatStateOf(0.5f) }
     var vignette by remember { mutableFloatStateOf(0f) }
     var compare by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf("") }
+    var sourceBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    var renderedBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(imageUri) {
+        sourceBitmap = if (imageUri == null) null else withContext(Dispatchers.IO) {
+            PhotoEditorEngine.loadBitmap(context, imageUri)
+        }
+    }
+    LaunchedEffect(sourceBitmap, tab, preset, intensity, warmth, vignette) {
+        val source = sourceBitmap
+        if (source != null && !compare) {
+            val settings = PhotoEditSettings(
+                brightness = if (tab == "Adjust" && preset == "Brightness") (intensity - 0.5f) * 1.6f else 0f,
+                contrast = if (tab == "Adjust" && preset == "Contrast") 0.5f + intensity * 1.2f else 1f,
+                saturation = if (tab == "Adjust" && preset == "Saturation") intensity * 2f else 1f,
+                warmth = (warmth - 0.5f) * 0.8f,
+                vignette = vignette,
+                filter = if (tab == "Filters") preset else "Original",
+                aspectRatio = if (tab == "Crop") preset else "Original"
+            )
+            renderedBitmap = withContext(Dispatchers.Default) { PhotoEditorEngine.render(source, settings) }
+        } else if (source != null && compare) {
+            renderedBitmap = source
+        }
+    }
     val choices = when (tab) {
-        "Filters" -> listOf("Original", "Cinema", "Warm", "Cool", "Vintage", "Fade", "Mono", "Portrait", "Food", "Night", "Dream")
-        "Retouch" -> listOf("Natural", "Skin smooth", "Detail", "Eyes", "Light balance", "Portrait")
-        "Crop" -> listOf("Original", "9:16", "4:5", "1:1", "3:4", "16:9", "Free")
-        "Background" -> listOf("Blur", "Replace", "Color", "Gradient", "Cutout", "Restore")
+        "Filters" -> listOf("Original", "Warm", "Cool", "Vintage", "B&W", "Invert")
+        "Retouch" -> listOf("Natural", "Soft light", "Detail")
+        "Crop" -> listOf("Original", "9:16", "4:5", "1:1", "3:4", "16:9")
+        "Background" -> listOf("Original", "Blur", "Color")
         else -> listOf("Exposure", "Brightness", "Contrast", "Saturation", "Highlights", "Shadows", "Temperature", "Tint", "Sharpness", "Vignette")
     }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(83.dp).clip(RoundedCornerShape(12.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF384F64), Color(0xFF81566B), Color(0xFFBF8A62)))), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (compare) "BEFORE" else "PHOTO PREVIEW", color = White, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                Text("Portrait • Color • Details", color = White.copy(alpha = 0.82f), fontSize = 10.sp)
+        Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(12.dp)).background(Panel2), contentAlignment = Alignment.Center) {
+            if (renderedBitmap != null) {
+                Image(bitmap = renderedBitmap!!.asImageBitmap(), contentDescription = "Edited photo preview",
+                    modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("PHOTO EDITOR", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(if (imageUri == null) "Import a photo to edit" else "Loading photo…", color = Muted, fontSize = 9.sp)
+                }
             }
-            SmallPill(if (compare) "Original" else "Preview", White)
+            SmallPill(if (compare) "Original" else "Live edit", White)
+        }
+        if (imageUri == null) {
+            Spacer(Modifier.height(8.dp))
+            PrimaryAction("Import photo", true, onAddMedia, Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -2177,26 +2339,42 @@ private fun PhotoEditorStudioControls(detail: String) {
         Spacer(Modifier.height(8.dp))
         Text(tab.uppercase() + " TOOLS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         StudioChoiceGrid(choices, preset) { preset = it }
-        Text("Strength  •  \${(intensity * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Text("Strength  •  ${(intensity * 100).toInt()}%", color = White, fontSize = 9.sp)
         Slider(value = intensity, onValueChange = { intensity = it })
         if (tab == "Adjust" || tab == "Filters") {
-            Text("Warmth  •  \${(warmth * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Text("Warmth  •  ${(warmth * 100).toInt()}%", color = White, fontSize = 9.sp)
             Slider(value = warmth, onValueChange = { warmth = it })
-            Text("Vignette  •  \${(vignette * 100).toInt()}%", color = White, fontSize = 9.sp)
+            Text("Vignette  •  ${(vignette * 100).toInt()}%", color = White, fontSize = 9.sp)
             Slider(value = vignette, onValueChange = { vignette = it })
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
             SmallPill("Compare", AccentBlue) { compare = !compare }
-            SmallPill("Reset", Muted) { preset = "Original"; intensity = 0.5f; warmth = 0.5f; vignette = 0f }
-            SmallPill("Apply preview ✓", Accent) { }
+            SmallPill("Reset", Muted) { preset = "Original"; intensity = 0.5f; warmth = 0.5f; vignette = 0f; compare = false; status = "" }
+            SmallPill("Save photo ✓", Accent) {
+                val bitmap = renderedBitmap
+                if (bitmap == null) {
+                    status = "Import a photo before saving."
+                } else {
+                    status = "Saving photo…"
+                    scope.launch {
+                        try {
+                            val saved = withContext(Dispatchers.IO) { PhotoEditorEngine.saveToGallery(context, bitmap) }
+                            status = "Photo saved to Gallery / Pictures / SAJI CapCut 2."
+                        } catch (error: Exception) {
+                            status = "Save failed: ${error.message ?: "Unknown error"}"
+                        }
+                    }
+                }
+            }
         }
-        Text("Photo Editor panels are ready. Actual photo processing and saving will be activated after UI completion.", color = Muted, fontSize = 8.sp)
+        if (status.isNotEmpty()) Text(status, color = Accent, fontSize = 8.sp)
+        Text("Photo edits are rendered on the imported bitmap and the Save button writes the edited image to Gallery.", color = Muted, fontSize = 8.sp)
     }
 }
 
 @Composable
 private fun TeleprompterStudioControls(detail: String) {
-    var script by remember { mutableStateOf("Welcome to SAJI CapCut 2. Today, we are creating something amazing...") }
+    var script by remember { mutableStateOf("Welcome to SAJI CapCut 2. Today, we are creating something amazing. Follow along and enjoy the process.") }
     var speed by remember { mutableFloatStateOf(0.45f) }
     var textSize by remember { mutableFloatStateOf(0.5f) }
     var countdown by remember { mutableStateOf("3 sec") }
@@ -2204,13 +2382,25 @@ private fun TeleprompterStudioControls(detail: String) {
     var mirror by remember { mutableStateOf(false) }
     var voiceFollow by remember { mutableStateOf(false) }
     var previewRunning by remember { mutableStateOf(false) }
+    val promptScroll = rememberScrollState()
+    LaunchedEffect(previewRunning, speed) {
+        if (previewRunning) {
+            promptScroll.scrollTo(0)
+            while (promptScroll.value < promptScroll.maxValue) {
+                val step = (1 + speed * 8f).toInt().coerceAtLeast(1)
+                promptScroll.scrollTo((promptScroll.value + step).coerceAtMost(promptScroll.maxValue))
+                delay((65L - (speed * 45f).toLong()).coerceAtLeast(18L))
+            }
+            previewRunning = false
+        }
+    }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("TELEPROMPTER", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text("Read your script while recording", color = White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-            SmallPill(if (previewRunning) "Preview ON" else "Ready", if (previewRunning) Accent else AccentBlue)
+            SmallPill(if (previewRunning) "Scrolling" else "Ready", if (previewRunning) Accent else AccentBlue)
         }
         Spacer(Modifier.height(7.dp))
         TextField(value = script, onValueChange = { script = it }, modifier = Modifier.fillMaxWidth().height(78.dp),
@@ -2221,9 +2411,18 @@ private fun TeleprompterStudioControls(detail: String) {
                 cursorColor = Accent, focusedIndicatorColor = Accent, unfocusedIndicatorColor = Color.Transparent
             ))
         Spacer(Modifier.height(7.dp))
-        Text("SCROLL SPEED  •  \${(speed * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Box(Modifier.fillMaxWidth().height(78.dp).clip(RoundedCornerShape(9.dp)).background(Color(0xFF0E1117)).padding(8.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(promptScroll)) {
+                Text(script.ifBlank { "Your scrolling script will appear here." },
+                    color = White, fontSize = (10f + textSize * 12f).sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(), lineHeight = 19.sp)
+                Spacer(Modifier.height(45.dp))
+            }
+            Text(position.uppercase(), color = Accent.copy(alpha = 0.7f), fontSize = 7.sp, modifier = Modifier.align(Alignment.TopEnd))
+        }
+        Text("SCROLL SPEED  •  ${(speed * 100).toInt()}%", color = White, fontSize = 9.sp)
         Slider(value = speed, onValueChange = { speed = it })
-        Text("TEXT SIZE  •  \${(textSize * 100).toInt()}%", color = White, fontSize = 9.sp)
+        Text("TEXT SIZE  •  ${(textSize * 100).toInt()}%", color = White, fontSize = 9.sp)
         Slider(value = textSize, onValueChange = { textSize = it })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("3 sec", "5 sec", "10 sec").forEach { SmallPill(it, if (countdown == it) Accent else Muted) { countdown = it } }
@@ -2236,8 +2435,8 @@ private fun TeleprompterStudioControls(detail: String) {
             SmallPill(if (mirror) "Mirror ON" else "Mirror OFF", if (mirror) Accent else Muted) { mirror = !mirror }
             SmallPill(if (voiceFollow) "Voice follow ON" else "Voice follow OFF", if (voiceFollow) AccentBlue else Muted) { voiceFollow = !voiceFollow }
         }
-        PrimaryAction(if (previewRunning) "Stop reading preview" else "Start reading preview", true, { previewRunning = !previewRunning }, Modifier.fillMaxWidth())
-        Text("Teleprompter controls are UI-ready. Camera recording, voice-follow and automatic scrolling will be connected in the activation phase.", color = Muted, fontSize = 8.sp)
+        PrimaryAction(if (previewRunning) "Stop scrolling" else "Start scrolling preview", true, { previewRunning = !previewRunning }, Modifier.fillMaxWidth())
+        Text("Script scrolling preview is active. Camera overlay, countdown recording and voice-follow need the camera/voice capture layer.", color = Muted, fontSize = 8.sp)
     }
 }
 
@@ -2369,5 +2568,123 @@ private fun MoreToolsDetailedControls(detail: String) {
             SmallPill("Apply preview ✓", Accent) { }
         }
         Text("Detailed control layout is ready. The processing engine for this tool will be activated and tested in the next phase.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+
+private fun isVideoUri(context: Context, uri: Uri): Boolean =
+    runCatching { context.contentResolver.getType(uri)?.startsWith("video/") == true }.getOrDefault(false)
+
+private fun isImageUri(context: Context, uri: Uri): Boolean =
+    runCatching { context.contentResolver.getType(uri)?.startsWith("image/") == true }.getOrDefault(false)
+
+private fun getMediaName(context: Context, uri: Uri): String {
+    return runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Imported media"
+}
+
+@Composable
+private fun MediaUriThumbnail(
+    uri: Uri,
+    modifier: Modifier = Modifier,
+    label: String = "",
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val bitmap by produceState<Bitmap?>(initialValue = null, key1 = uri) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                if (isVideoUri(context, uri)) {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(context, uri)
+                        retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } finally {
+                        retriever.release()
+                    }
+                } else {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                    val sample = if (bounds.outWidth > 1800 || bounds.outHeight > 1800) 4 else if (bounds.outWidth > 900 || bounds.outHeight > 900) 2 else 1
+                    val options = BitmapFactory.Options().apply { inSampleSize = sample }
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+    Box(
+        modifier.clip(RoundedCornerShape(7.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF244252), Color(0xFF60445F))))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .border(if (selected) 2.dp else 0.dp, if (selected) Accent else Color.Transparent, RoundedCornerShape(7.dp))
+    ) {
+        if (bitmap != null) {
+            Image(bitmap!!.asImageBitmap(), contentDescription = label, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Text(if (isVideoUri(context, uri)) "▶ VIDEO" else "▧ PHOTO", color = White, fontSize = 9.sp, modifier = Modifier.align(Alignment.Center))
+        }
+        if (label.isNotEmpty()) {
+            Text(label, color = White, fontSize = 7.sp, maxLines = 1, modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Bg.copy(alpha = 0.72f)).padding(3.dp))
+        }
+        if (selected) {
+            Box(Modifier.align(Alignment.TopEnd).padding(4.dp).size(18.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
+                Text("✓", color = Bg, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaUriTile(uri: Uri, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val context = LocalContext.current
+    MediaUriThumbnail(
+        uri = uri,
+        modifier = modifier.aspectRatio(0.92f),
+        label = getMediaName(context, uri),
+        selected = selected,
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun EditorMediaPreview(mediaUris: List<Uri>, isPlaying: Boolean) {
+    val context = LocalContext.current
+    val videoUri = mediaUris.firstOrNull { isVideoUri(context, it) }
+    val imageUri = mediaUris.firstOrNull { isImageUri(context, it) }
+    Box(
+        Modifier.fillMaxHeight().aspectRatio(9f / 16f).clip(RoundedCornerShape(13.dp))
+            .background(Bg), contentAlignment = Alignment.Center
+    ) {
+        when {
+            videoUri != null -> AndroidView(
+                factory = { viewContext ->
+                    VideoView(viewContext).apply {
+                        tag = videoUri
+                        setVideoURI(videoUri)
+                        setOnPreparedListener { player ->
+                            player.isLooping = true
+                            if (isPlaying) start()
+                        }
+                    }
+                },
+                update = { view ->
+                    if (view.tag != videoUri) {
+                        view.tag = videoUri
+                        view.setVideoURI(videoUri)
+                    }
+                    if (isPlaying && !view.isPlaying) view.start()
+                    if (!isPlaying && view.isPlaying) view.pause()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            imageUri != null -> MediaUriThumbnail(imageUri, Modifier.fillMaxSize())
+            else -> PreviewStage(isPlaying)
+        }
     }
 }
