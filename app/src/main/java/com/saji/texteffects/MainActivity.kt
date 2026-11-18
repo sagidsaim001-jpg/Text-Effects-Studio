@@ -123,6 +123,10 @@ private fun CapCutTwoApp() {
                     onBack = { page = pickerReturnTo },
                     onAdd = { page = "editor" }
                 )
+                "capture" -> CaptureStudioScreen(
+                    onBack = { page = "home" },
+                    onImport = { pickerReturnTo = "capture"; page = "picker" }
+                )
                 "editor" -> EditorScreen(
                     onBack = { page = "home" },
                     onExport = { selectedExportNotice = false; page = "export" },
@@ -194,7 +198,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HomeSmallCard("▧", "Photo editor", Modifier.weight(1f)) { onNewProject() }
-                HomeSmallCard("◉", "Camera", Modifier.weight(1f)) { onNewProject() }
+                HomeSmallCard("◉", "Camera", Modifier.weight(1f)) { onNavigate("capture") }
                 HomeSmallCard("▤", "Teleprompter", Modifier.weight(1f)) { onNewProject() }
             }
             Spacer(Modifier.height(26.dp))
