@@ -43,9 +43,9 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
 
     // Video processing and export engine.
-    implementation("androidx.media3:media3-transformer:1.11.1")
-    implementation("androidx.media3:media3-effect:1.11.1")
-    implementation("androidx.media3:media3-common:1.11.1")
+    implementation("androidx.media3:media3-transformer:1.9.4")
+    implementation("androidx.media3:media3-effect:1.9.4")
+    implementation("androidx.media3:media3-common:1.9.4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
