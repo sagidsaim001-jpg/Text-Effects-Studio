@@ -782,6 +782,8 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     "Filters" -> FiltersStudioControls(detail)
                     "Effects" -> EffectsStudioControls(detail)
                     "Captions" -> CaptionsStudioControls(detail)
+                    "Stickers" -> StickersStudioControls(detail)
+                    "Overlay" -> OverlayStudioControls(detail)
                     else -> ToolDetailControls(tool, detail)
                 }
             }
@@ -1088,6 +1090,110 @@ private fun CaptionsStudioControls(detail: String) {
             SmallPill(if (highlight) "ON" else "OFF", if (highlight) Accent else Muted) { highlight = !highlight }
         }
         Text("Language: " + language + "  •  " + detail + " panel", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun StickersStudioControls(detail: String) {
+    var category by remember(detail) { mutableStateOf("Trending") }
+    var selected by remember { mutableStateOf("✨") }
+    var scale by remember { mutableFloatStateOf(0.5f) }
+    val stickers = when (category) {
+        "Emoji" -> listOf("😀", "😂", "🥹", "😍", "😎", "🤩", "🔥", "💯", "❤️", "🥳", "😴", "🤔")
+        "Decorative" -> listOf("✦", "♡", "★", "☾", "☀", "❀", "✧", "♛", "❋", "☁", "➳", "∞")
+        "Labels" -> listOf("NEW", "VLOG", "LOVE", "WOW", "SALE", "DAY", "LIVE", "BEST", "MOOD", "TOP", "GO", "HEY")
+        "Social" -> listOf("▶", "♡", "♪", "＋", "↗", "#", "@", "♥", "✉", "☻", "◎", "⌁")
+        "AI stickers" -> listOf("🤖", "👾", "🪐", "🐉", "🦋", "🌈", "🧸", "🦄", "🚀", "🌙", "💎", "🪄")
+        else -> listOf("✨", "🔥", "❤️", "⭐", "🌸", "⚡", "🎧", "☁", "🦋", "💫", "🌙", "🎬")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("STICKER PREVIEW", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(listOf(Color(0xFF1D3F50), Color(0xFF493A65)))), contentAlignment = Alignment.Center) {
+            Text(selected, color = White, fontSize = (24 + scale * 24).sp)
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            listOf("Trending", "Emoji", "Decorative", "Labels", "Social", "AI stickers").forEach {
+                SmallPill(it, if (category == it) Accent else Muted) { category = it; selected = when (it) { "Emoji" -> "😀"; "Decorative" -> "✦"; "Labels" -> "NEW"; "Social" -> "▶"; "AI stickers" -> "🤖"; else -> "✨" } }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        stickers.chunked(6).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { item ->
+                    Box(Modifier.weight(1f).height(38.dp).padding(bottom = 3.dp).clip(RoundedCornerShape(7.dp)).background(if (selected == item) Accent.copy(alpha = 0.2f) else Panel2).clickable { selected = item }, contentAlignment = Alignment.Center) {
+                        Text(item, color = White, fontSize = 18.sp)
+                    }
+                }
+                repeat(6 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        Text("Sticker size  " + (70 + scale * 130).toInt() + "%", color = White, fontSize = 9.sp)
+        Slider(value = scale, onValueChange = { scale = it })
+        Text("Selected sticker: " + selected + "  •  Sample library preview", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun OverlayStudioControls(detail: String) {
+    var blend by remember { mutableStateOf("Normal") }
+    var opacity by remember { mutableFloatStateOf(0.85f) }
+    var scale by remember { mutableFloatStateOf(0.6f) }
+    var selectedMask by remember { mutableStateOf("Rectangle") }
+    val blendModes = listOf("Normal", "Screen", "Multiply", "Overlay", "Soft light", "Add", "Darken", "Lighten")
+    val masks = listOf("Rectangle", "Circle", "Split", "Linear", "Heart", "Custom")
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("OVERLAY COMPOSITION", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(listOf(Color(0xFF1A4655), Color(0xFF5A416D), Color(0xFF9B6555)))), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth(0.38f).height(34.dp).clip(RoundedCornerShape(7.dp)).background(Accent.copy(alpha = opacity * 0.55f)), contentAlignment = Alignment.Center) {
+                Text("OVERLAY", color = White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+            Text("BASE CLIP", color = White.copy(alpha = 0.65f), fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 4.dp))
+        }
+        Spacer(Modifier.height(6.dp))
+        when (detail) {
+            "Mask" -> {
+                Text("MASK SHAPES", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    masks.forEach { SmallPill(it, if (selectedMask == it) Accent else Muted) { selectedMask = it } }
+                }
+                Text("Mask: " + selectedMask, color = White, fontSize = 9.sp)
+            }
+            "Blend" -> {
+                Text("BLEND MODE", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                blendModes.chunked(4).forEach { rowItems ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        rowItems.forEach { item -> SmallPill(item, if (blend == item) Accent else Muted) { blend = item } }
+                    }
+                }
+                Text("Blend: " + blend, color = White, fontSize = 9.sp)
+            }
+            "Tracking" -> {
+                Text("MOTION TRACKING", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmallPill("Select target", Accent) { }
+                    SmallPill("Track forward", Muted) { }
+                    SmallPill("Reset", Muted) { }
+                }
+                Text("Tracking controls are visual placeholders until tracking engine integration.", color = Muted, fontSize = 8.sp)
+            }
+            else -> {
+                Text("OVERLAY TOOLS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SmallPill("Add media", Accent) { }
+                    SmallPill("Duplicate", Muted) { }
+                    SmallPill("Flip", Muted) { }
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text("Opacity  " + (opacity * 100).toInt() + "%", color = White, fontSize = 9.sp)
+        Slider(value = opacity, onValueChange = { opacity = it })
+        Text("Overlay scale  " + (50 + scale * 150).toInt() + "%", color = White, fontSize = 9.sp)
+        Slider(value = scale, onValueChange = { scale = it })
+        Text("Overlay controls preview  •  Not yet connected to clip rendering", color = Muted, fontSize = 8.sp)
     }
 }
 
