@@ -67,7 +67,7 @@ private val editorTools = listOf(
 )
 
 private val toolOptions = mapOf(
-    "Edit" to listOf("Split", "Speed", "Animation", "Style", "Crop", "Rotate", "Mirror", "Freeze", "Keyframe", "Stabilize", "Retouch", "Mask", "Tracking", "Cutout", "Adjust", "Opacity", "Volume"),
+    "Edit" to listOf("Split", "Speed", "Animation", "Style", "Crop", "Rotate", "Mirror", "Freeze", "Keyframe", "Stabilize", "Retouch", "Mask", "Tracking", "Cutout", "Adjust", "Opacity", "Volume", "Perspective", "HSL", "Curves", "Sharpen", "Denoise", "Motion blur", "Auto reframe", "Relight", "Color match", "Lens correction"),
     "Clip" to listOf("Replace", "Split", "Speed", "Volume", "Animation", "Adjust", "Mask", "Opacity", "Copy", "Reverse", "Freeze", "Keyframe", "Delete"),
     "Audio" to listOf("Sounds", "Sound effects", "Extract audio", "Voiceover", "Text to speech", "Beats", "Volume", "Fade", "Voice effects", "Noise reduction"),
     "Text" to listOf("Add text", "Text templates", "Auto captions", "Fonts", "Style", "Effects", "Animation", "Bubbles", "Text to speech", "Tracking"),
@@ -786,6 +786,11 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                     "Overlay" -> OverlayStudioControls(detail)
                     "Speed" -> SpeedStudioControls(detail)
                     "Animation" -> AnimationStudioControls(detail)
+                    "Edit" -> when (detail) {
+                        "Speed" -> SpeedStudioControls(detail)
+                        "Animation" -> AnimationStudioControls(detail)
+                        else -> EditStudioControls(detail)
+                    }
                     else -> ToolDetailControls(tool, detail)
                 }
             }
@@ -1294,6 +1299,90 @@ private fun AnimationStudioControls(detail: String) {
             SmallPill("Reset", Muted) { preset = "Fade"; duration = 0.5f; intensity = 0.55f }
         }
         Text("Animation controls are a UI preview. Timeline keyframes and easing curves are not yet linked to clip rendering.", color = Muted, fontSize = 8.sp)
+    }
+}
+
+@Composable
+private fun EditStudioControls(detail: String) {
+    var selected by remember(detail) { mutableStateOf("") }
+    var amount by remember(detail) { mutableFloatStateOf(0.5f) }
+    var secondary by remember(detail) { mutableFloatStateOf(0.5f) }
+    val options = when (detail) {
+        "Crop" -> listOf("Original", "9:16", "16:9", "1:1", "4:5", "Free")
+        "Rotate" -> listOf("90° left", "90° right", "180°", "Straighten")
+        "Mirror" -> listOf("Horizontal", "Vertical", "Both")
+        "Adjust" -> listOf("Brightness", "Contrast", "Saturation", "Exposure", "Temperature", "Tint", "Highlights", "Shadows")
+        "HSL" -> listOf("Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Magenta")
+        "Curves" -> listOf("RGB", "Red", "Green", "Blue")
+        "Mask" -> listOf("Rectangle", "Circle", "Split", "Linear", "Mirror", "Heart", "Star", "Custom")
+        "Chroma key" -> listOf("Pick color", "Green screen", "Blue screen", "Spill removal", "Edge refine")
+        "Stabilize" -> listOf("Recommended", "Minimum crop", "Most stable")
+        "Retouch" -> listOf("Face", "Skin", "Eyes", "Teeth", "Reshape", "Natural")
+        "Relight" -> listOf("Auto", "Front light", "Soft light", "Studio", "Back light")
+        "Freeze" -> listOf("Freeze current frame", "Choose frame", "Duration")
+        "Reverse" -> listOf("Reverse clip", "Keep original audio", "Mute reversed audio")
+        "Split" -> listOf("At playhead", "Split scene", "Split audio")
+        "Keyframe" -> listOf("Position", "Scale", "Rotation", "Opacity", "Add keyframe", "Remove keyframe")
+        "Tracking" -> listOf("Track object", "Track face", "Attach overlay", "Reset")
+        "Cutout" -> listOf("Auto cutout", "Custom cutout", "Chroma key", "Restore", "Erase")
+        "Opacity" -> listOf("Uniform", "Fade in", "Fade out")
+        "Volume" -> listOf("Clip volume", "Fade in", "Fade out", "Normalize")
+        "Perspective" -> listOf("Horizontal", "Vertical", "Rotate", "Scale")
+        "Sharpen" -> listOf("Details", "Edge enhance", "Natural")
+        "Denoise" -> listOf("Low", "Medium", "High", "Preserve details")
+        "Motion blur" -> listOf("Directional", "Radial", "Zoom", "Auto")
+        "Auto reframe" -> listOf("9:16", "1:1", "4:5", "16:9", "Track subject")
+        "Color match" -> listOf("Reference frame", "Match clip", "Reset")
+        "Lens correction" -> listOf("Distortion", "Vignette", "Chromatic aberration")
+        else -> listOf("Auto", "Manual", "Reset", "Apply")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text(detail.uppercase() + " STUDIO", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        when (detail) {
+            "Crop" -> {
+                Box(Modifier.fillMaxWidth().height(82.dp).clip(RoundedCornerShape(12.dp)).background(Brush.linearGradient(listOf(Color(0xFF253D50), Color(0xFF4C3A5A)))), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxHeight(0.78f).fillMaxWidth(0.42f).border(1.dp, Accent, RoundedCornerShape(5.dp)))
+                    Text("Crop preview", color = White, fontSize = 9.sp)
+                }
+            }
+            "Chroma key", "Cutout" -> {
+                Box(Modifier.fillMaxWidth().height(64.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF176B4C)), contentAlignment = Alignment.Center) {
+                    Text("SUBJECT / BACKGROUND PREVIEW", color = White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            "Stabilize" -> Text("Analyze clip movement and choose a stabilization strength.", color = Muted, fontSize = 9.sp)
+            "Adjust", "HSL", "Curves", "Relight", "Sharpen", "Denoise" -> Text("Fine-tune image appearance with live adjustment controls.", color = Muted, fontSize = 9.sp)
+            else -> Text("Select a mode and customize the clip.", color = Muted, fontSize = 9.sp)
+        }
+        Spacer(Modifier.height(8.dp))
+        options.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { item ->
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                        .background(if (selected == item) Color(0xFF17443F) else Panel2)
+                        .border(1.dp, if (selected == item) Accent else Line, RoundedCornerShape(8.dp))
+                        .clickable { selected = item }.padding(vertical = 9.dp),
+                        contentAlignment = Alignment.Center) {
+                        Text(item, color = if (selected == item) Accent else White, fontSize = 8.sp, textAlign = TextAlign.Center, maxLines = 2)
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(5.dp))
+        }
+        Text("Amount  " + (amount * 100).toInt() + "%", color = White, fontSize = 9.sp)
+        Slider(value = amount, onValueChange = { amount = it })
+        if (detail in listOf("Adjust", "HSL", "Curves", "Chroma key", "Mask", "Retouch", "Relight", "Perspective", "Lens correction")) {
+            Text("Refine  " + (secondary * 100).toInt() + "%", color = White, fontSize = 9.sp)
+            Slider(value = secondary, onValueChange = { secondary = it })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            SmallPill("Reset", Muted) { selected = ""; amount = 0.5f; secondary = 0.5f }
+            SmallPill("Apply  ✓", Accent) { }
+            SmallPill("Compare", AccentBlue) { }
+        }
+        Text("Controls are currently a studio UI preview. Clip-processing integration is being built separately.", color = Muted, fontSize = 8.sp)
     }
 }
 
