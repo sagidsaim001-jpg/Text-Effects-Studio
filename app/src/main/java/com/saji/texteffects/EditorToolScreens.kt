@@ -52,6 +52,13 @@ internal fun ToolDetailControls(tool: String, detail: String) {
     when {
         detail == "Speed" -> SpeedDetailScreen()
         detail == "Animation" -> AnimationDetailScreen()
+        tool == "Stickers" -> StickerDetailScreen()
+        tool == "Overlay" || detail == "Blend" || detail == "Opacity" -> OverlayDetailScreen(detail)
+        detail in listOf("Crop", "Rotate", "Mirror", "Flip", "Auto reframe") -> CropDetailScreen(detail)
+        detail in listOf("Volume", "Fade", "Loudness normalization") && tool != "Audio" -> VolumeDetailScreen(detail)
+        detail in listOf("Tracking", "Motion tracking", "Camera tracking") && tool != "Text" -> TrackingDetailScreen()
+        detail in listOf("Split", "Replace", "Reverse", "Freeze", "Copy", "Delete") -> ClipActionDetailScreen(detail)
+        detail in listOf("Retouch", "Relight", "Enhance", "Motion blur", "Flicker removal") -> EnhanceDetailScreen(detail)
         tool == "Text" || detail in listOf("Text editor", "Add text", "Text templates", "Fonts", "Style", "Bubbles", "Tracking") -> TextDetailScreen(detail)
         tool == "Audio" || detail in listOf("Sounds", "Sound effects", "Extract audio", "Voiceover", "Text to speech", "Beats", "Fade", "Voice effects", "Noise reduction") -> AudioDetailScreen(detail)
         detail == "Adjust" -> AdjustDetailScreen()
@@ -567,3 +574,235 @@ private fun CaptionPreviewRow(time: String, text: String) {
 
 private fun Modifier.clipRoundedBackground(color: Color): Modifier =
     this.background(color, RoundedCornerShape(10.dp))
+
+
+@Composable
+private fun CropDetailScreen(detail: String) {
+    var ratio by remember { mutableStateOf("Original") }
+    var rotation by remember { mutableFloatStateOf(0.5f) }
+    var zoom by remember { mutableFloatStateOf(0.5f) }
+    var flipHorizontal by remember { mutableStateOf(false) }
+    var flipVertical by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        DetailTabs(listOf("Crop", "Rotate", "Mirror", "Auto reframe"), detail) { }
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(56.dp).clipRoundedBackground(DetailCard), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(70.dp).height(48.dp).border(1.dp, DetailAccent, RoundedCornerShape(3.dp))) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(DetailAccent).align(Alignment.Center))
+                Box(Modifier.fillMaxHeight().width(1.dp).background(DetailAccent).align(Alignment.Center))
+            }
+            Text("Preview crop frame", color = DetailMuted, fontSize = 9.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            listOf("Original", "9:16", "16:9", "1:1", "4:5", "3:4", "Fit").forEach { DetailChip(it, ratio == it) { ratio = it } }
+        }
+        DetailSlider("Rotation", rotation, { rotation = it }, "-180°", "180°")
+        DetailSlider("Zoom", zoom, { zoom = it }, "Fit", "Fill")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DetailChip(if (flipHorizontal) "↔ Flipped" else "↔ Flip H", flipHorizontal) { flipHorizontal = !flipHorizontal }
+            DetailChip(if (flipVertical) "↕ Flipped" else "↕ Flip V", flipVertical) { flipVertical = !flipVertical }
+            DetailChip("Reset", false) { rotation = 0.5f; zoom = 0.5f; ratio = "Original" }
+        }
+    }
+}
+
+@Composable
+private fun OverlayDetailScreen(detail: String) {
+    var tab by remember { mutableStateOf(if (detail == "Blend") "Blend" else "Basic") }
+    var opacity by remember { mutableFloatStateOf(0.8f) }
+    var scale by remember { mutableFloatStateOf(0.5f) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        DetailTabs(listOf("Basic", "Blend", "Mask", "Animation", "Tracking"), tab) { tab = it }
+        Spacer(Modifier.height(8.dp))
+        if (tab == "Blend") {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf("Normal", "Darken", "Multiply", "Screen", "Overlay", "Soft light", "Hard light", "Difference").forEachIndexed { i, mode -> DetailChip(mode, i == 0) { } }
+            }
+        } else if (tab == "Mask") {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf("Rectangle", "Circle", "Split", "Mirror", "Heart", "Star").forEachIndexed { i, shape -> DetailAsset(shape, i == 0) { } }
+            }
+            DetailSlider("Feather", 0.2f, { })
+        } else if (tab == "Animation") {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                listOf("Fade", "Slide", "Zoom", "Spin", "Bounce", "Loop").forEachIndexed { i, name -> DetailAsset(name, i == 0) { } }
+            }
+        } else if (tab == "Tracking") {
+            DetailInfo("Track overlay position", "Select a visible object in the preview and follow its movement")
+            DetailChip("Select tracking area", true) { }
+        } else {
+            DetailInfo("Overlay transform", "Position, size and opacity controls")
+            DetailSlider("Opacity", opacity, { opacity = it })
+            DetailSlider("Scale", scale, { scale = it })
+            DetailSlider("Rotation", 0.5f, { }, "-180°", "180°")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            DetailChip("Reset", false) { opacity = 0.8f; scale = 0.5f }
+            DetailChip("Apply", true) { }
+        }
+    }
+}
+
+@Composable
+private fun StickerDetailScreen() {
+    var category by remember { mutableStateOf("Trending") }
+    var search by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        TextField(
+            value = search,
+            onValueChange = { search = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("Search stickers") },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = DetailCard,
+                unfocusedContainerColor = DetailCard,
+                focusedTextColor = DetailWhite,
+                unfocusedTextColor = DetailWhite,
+                cursorColor = DetailAccent
+            )
+        )
+        Spacer(Modifier.height(7.dp))
+        DetailTabs(listOf("Trending", "Emoji", "Decorative", "Labels", "Social", "Saved", "AI"), category) { category = it }
+        Spacer(Modifier.height(8.dp))
+        repeat(2) { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                for (column in 0..5) {
+                    val symbol = when ((row * 6 + column) % 6) {
+                        0 -> "✦"
+                        1 -> "♡"
+                        2 -> "★"
+                        3 -> "☀"
+                        4 -> "♫"
+                        else -> "✿"
+                    }
+                    Box(
+                        Modifier.weight(1f).height(42.dp).clip(RoundedCornerShape(8.dp))
+                            .background(DetailCard).clickable { },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(symbol, color = listOf(DetailAccent, Color(0xFFFFC45C), Color(0xFFFF7595))[column % 3], fontSize = 21.sp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(7.dp))
+        }
+        DetailInfo("Sticker placement", "Tap an item to add it to the project canvas")
+    }
+}
+
+@Composable
+private fun VolumeDetailScreen(detail: String) {
+    var volume by remember { mutableFloatStateOf(0.7f) }
+    var fadeIn by remember { mutableFloatStateOf(0.1f) }
+    var fadeOut by remember { mutableFloatStateOf(0.15f) }
+    var normalize by remember { mutableStateOf(false) }
+    var ducking by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        DetailTabs(listOf("Volume", "Fade", "Enhance"), detail) { }
+        Spacer(Modifier.height(7.dp))
+        DetailSlider("Volume", volume, { volume = it }, "0%", "200%")
+        DetailSlider("Fade in", fadeIn, { fadeIn = it }, "0s", "10s")
+        DetailSlider("Fade out", fadeOut, { fadeOut = it }, "0s", "10s")
+        ToggleDetailRow("Normalize loudness", "Balance clip audio levels", normalize) { normalize = it }
+        ToggleDetailRow("Audio ducking", "Lower background audio under speech", ducking) { ducking = it }
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            DetailChip("Reset", false) { volume = 0.7f; fadeIn = 0.1f; fadeOut = 0.15f }
+            DetailChip("Apply to all", false) { }
+        }
+    }
+}
+
+@Composable
+private fun TrackingDetailScreen() {
+    var mode by remember { mutableStateOf("Object") }
+    var sensitivity by remember { mutableFloatStateOf(0.65f) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        DetailTabs(listOf("Object", "Face", "Motion"), mode) { mode = it }
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(56.dp).clipRoundedBackground(DetailCard), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(34.dp).border(1.dp, DetailAccent, RoundedCornerShape(5.dp)))
+            Text("Tracking target preview", color = DetailMuted, fontSize = 9.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp))
+        }
+        Spacer(Modifier.height(7.dp))
+        DetailInfo("Select a tracking target", "Place the target frame over the object you want to follow")
+        DetailSlider("Sensitivity", sensitivity, { sensitivity = it })
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            DetailChip("Set target", true) { }
+            DetailChip("Start tracking", false) { }
+            DetailChip("Reset", false) { }
+        }
+    }
+}
+
+@Composable
+private fun ClipActionDetailScreen(detail: String) {
+    var duration by remember { mutableFloatStateOf(0.5f) }
+    var keepAudio by remember { mutableStateOf(true) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        when (detail) {
+            "Split" -> {
+                DetailInfo("Split clip at playhead", "The selected clip will be divided into two segments")
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    DetailChip("Split", true) { }
+                    DetailChip("Split all tracks", false) { }
+                }
+            }
+            "Replace" -> {
+                DetailInfo("Replace selected clip", "Choose another video or photo while keeping the current clip position")
+                DetailChip("Choose replacement media", true) { }
+            }
+            "Reverse" -> {
+                DetailInfo("Reverse playback", "Play the selected clip from end to start")
+                ToggleDetailRow("Keep original audio", "Retain the audio track separately", keepAudio) { keepAudio = it }
+                DetailChip("Reverse clip", true) { }
+            }
+            "Freeze" -> {
+                DetailInfo("Freeze frame", "Create a still frame at the current playhead position")
+                DetailSlider("Freeze duration", duration, { duration = it }, "0.5s", "10s")
+                DetailChip("Add freeze frame", true) { }
+            }
+            "Delete" -> {
+                DetailInfo("Remove selected clip", "This sample action will be connected to the timeline editing engine")
+                DetailChip("Delete selected clip", true) { }
+            }
+            else -> {
+                DetailInfo("Duplicate clip", "Create a copy of the selected clip on the timeline")
+                DetailChip("Duplicate", true) { }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnhanceDetailScreen(detail: String) {
+    var strength by remember { mutableFloatStateOf(0.55f) }
+    var preserve by remember { mutableStateOf(true) }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        DetailInfo(detail, "Fine tune the selected enhancement")
+        DetailTabs(listOf("Basic", "Auto", "Manual", "Face"), "Basic") { }
+        Spacer(Modifier.height(7.dp))
+        DetailSlider("Strength", strength, { strength = it })
+        DetailSlider("Detail", 0.45f, { })
+        DetailSlider("Light", 0.5f, { })
+        DetailSlider("Tone", 0.5f, { })
+        ToggleDetailRow("Preserve details", "Keep natural texture and edges", preserve) { preserve = it }
+        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            DetailChip("Before / after", false) { }
+            DetailChip("Reset", false) { strength = 0.55f }
+            DetailChip("Apply", true) { }
+        }
+    }
+}
+
+@Composable
+private fun ToggleDetailRow(title: String, description: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = DetailWhite, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Text(description, color = DetailMuted, fontSize = 8.sp)
+        }
+        DetailChip(if (checked) "ON" else "OFF", checked) { onToggle(!checked) }
+    }
+}
