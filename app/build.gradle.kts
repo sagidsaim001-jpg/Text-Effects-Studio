@@ -12,8 +12,8 @@ android {
         applicationId = "com.saji.texteffects"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildFeatures {
@@ -42,9 +42,5 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.foundation:foundation")
 
-    // Media3 video rendering and text overlay export
-    implementation("androidx.media3:media3-common:1.11.1")
-    implementation("androidx.media3:media3-effect:1.11.1")
-    implementation("androidx.media3:media3-transformer:1.11.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
