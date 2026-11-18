@@ -326,7 +326,9 @@ private fun ProfileScreen(onBack: () -> Unit, onNavigate: (String) -> Unit) {
 private fun MediaPickerScreen(onBack: () -> Unit, onAdd: () -> Unit) {
     var tab by remember { mutableStateOf("Videos") }
     var album by remember { mutableStateOf("All media") }
+    var albumOpen by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf(setOf<Int>()) }
+    val albums = listOf("All media", "Camera", "CapCut", "Downloads", "Favorites", "Screenshots", "WhatsApp")
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("×", color = White, fontSize = 28.sp, modifier = Modifier.clickable { onBack() })
@@ -336,9 +338,21 @@ private fun MediaPickerScreen(onBack: () -> Unit, onAdd: () -> Unit) {
         }
         HorizontalChips(listOf("Videos", "Photos", "Live photos"), tab) { tab = it; selected = emptySet() }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(album + "  ▾", color = White, fontSize = 13.sp, modifier = Modifier.clickable { album = if (album == "All media") "Camera" else "All media" })
+            Text(album + "  ▾", color = White, fontSize = 13.sp, modifier = Modifier.clickable { albumOpen = !albumOpen })
             Spacer(Modifier.weight(1f))
-            Text("Select multiple  ▦", color = Muted, fontSize = 11.sp)
+            Text("Select multiple  ▦", color = Muted, fontSize = 11.sp, modifier = Modifier.clickable { selected = if (selected.size == 12) emptySet() else (0..11).toSet() })
+        }
+        if (albumOpen) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(12.dp)).background(Panel).padding(9.dp)) {
+                Text("Albums", color = White, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
+                albums.forEach { name ->
+                    Row(Modifier.fillMaxWidth().clickable { album = name; albumOpen = false }.padding(horizontal = 8.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("▧", color = Accent, fontSize = 16.sp, modifier = Modifier.width(32.dp))
+                        Text(name, color = if (album == name) Accent else White, fontSize = 11.sp, modifier = Modifier.weight(1f))
+                        if (album == name) Text("✓", color = Accent, fontSize = 12.sp)
+                    }
+                }
+            }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp)) {
             for (rowIndex in 0..3) {
@@ -353,7 +367,18 @@ private fun MediaPickerScreen(onBack: () -> Unit, onAdd: () -> Unit) {
                 Spacer(Modifier.height(5.dp))
             }
             Spacer(Modifier.height(12.dp))
-            Text("Showing sample media layout. Device gallery connection will be enabled in the import phase.", color = Muted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(12.dp))
+            if (selected.isNotEmpty()) {
+                Text(selected.size.toString() + " item(s) selected", color = Accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    selected.sorted().forEach { index ->
+                        Box(Modifier.size(54.dp).clip(RoundedCornerShape(7.dp)).background(Brush.linearGradient(listOf(Color(0xFF355B68), Color(0xFF76506A)))), contentAlignment = Alignment.Center) {
+                            Text((index + 1).toString(), color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                Text("Showing sample media layout. Device gallery connection will be enabled in the import phase.", color = Muted, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(12.dp))
+            }
         }
         Row(Modifier.fillMaxWidth().background(Panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(selected.size.toString() + " selected", color = White, fontSize = 12.sp, modifier = Modifier.weight(1f))
@@ -886,36 +911,117 @@ private fun PrimaryAction(text: String, enabled: Boolean, onClick: () -> Unit, m
 
 @Composable
 private fun CapCutSettingsScreen(onBack: () -> Unit) {
+    var tab by remember { mutableStateOf("General") }
     var language by remember { mutableStateOf("English") }
     var appearance by remember { mutableStateOf("Dark") }
+    var resolution by remember { mutableStateOf("1080p") }
+    var frameRate by remember { mutableStateOf("30 fps") }
+    var format by remember { mutableStateOf("MP4") }
     var notifications by remember { mutableStateOf(true) }
     var haptics by remember { mutableStateOf(true) }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    var autoSave by remember { mutableStateOf(true) }
+    var timelineSnap by remember { mutableStateOf(true) }
+    var highQualityPreview by remember { mutableStateOf(false) }
+    var smartHdr by remember { mutableStateOf(false) }
+    var clearConfirmation by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("‹", color = White, fontSize = 30.sp, modifier = Modifier.clickable { onBack() })
             Spacer(Modifier.width(12.dp))
             Text("Settings", color = White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(18.dp))
-        SettingHeading("App preferences", "")
-        ProfileRow("文", "Language", language) { language = if (language == "English") "Urdu" else "English" }
-        ProfileRow("◐", "Appearance", appearance) { appearance = if (appearance == "Dark") "System default" else "Dark" }
-        ToggleRow("Notifications", "Product tips and project reminders", notifications) { notifications = it }
-        ToggleRow("Haptic feedback", "Vibration on editing controls", haptics) { haptics = it }
-        Spacer(Modifier.height(16.dp))
-        SettingHeading("Editor settings", "")
-        ProfileRow("▤", "Default video resolution", "1080p") { }
-        ProfileRow("◷", "Default frame rate", "30 fps") { }
-        ProfileRow("▣", "Save exports to", "Movies / SAJI CapCut 2") { }
-        ProfileRow("⌫", "Clear cache", "Temporary files and previews") { }
-        Spacer(Modifier.height(16.dp))
-        SettingHeading("About", "")
-        ProfileRow("ⓘ", "App version", "0.2.0 UI Foundation") { }
-        ProfileRow("♡", "Feedback", "Send suggestions") { }
-        Text("SAJI CapCut 2  •  UI Foundation", color = Muted, fontSize = 10.sp, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center)
+        HorizontalChips(listOf("General", "Editor", "Export", "Storage", "Privacy", "About"), tab) { tab = it }
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 14.dp)) {
+            when (tab) {
+                "General" -> {
+                    SettingHeading("App preferences", "Personalize your workspace")
+                    ProfileRow("文", "Language", language) { language = if (language == "English") "Urdu" else "English" }
+                    ProfileRow("◐", "Appearance", appearance) { appearance = if (appearance == "Dark") "System default" else if (appearance == "System default") "Light" else "Dark" }
+                    ToggleRow("Notifications", "Product tips and project reminders", notifications) { notifications = it }
+                    ToggleRow("Haptic feedback", "Vibration on editing controls", haptics) { haptics = it }
+                }
+                "Editor" -> {
+                    SettingHeading("Editing preferences", "Control your timeline workspace")
+                    ToggleRow("Auto save projects", "Save project changes automatically", autoSave) { autoSave = it }
+                    ToggleRow("Timeline snapping", "Align clips and layers to nearby edges", timelineSnap) { timelineSnap = it }
+                    ToggleRow("High quality preview", "Use a sharper preview when possible", highQualityPreview) { highQualityPreview = it }
+                    SettingHeading("Default canvas", "New project aspect ratio")
+                    ChoiceRow(listOf("9:16", "16:9", "1:1", "4:5"), "9:16") { }
+                    ProfileRow("◷", "Undo history", "Up to 20 steps") { }
+                    ProfileRow("▤", "Default timeline zoom", "Fit project") { }
+                }
+                "Export" -> {
+                    SettingHeading("Default export", "Starting values for new exports")
+                    Text("Resolution", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    ChoiceRow(listOf("720p", "1080p", "2K", "4K"), resolution) { resolution = it }
+                    Spacer(Modifier.height(13.dp))
+                    Text("Frame rate", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    ChoiceRow(listOf("24 fps", "30 fps", "50 fps", "60 fps"), frameRate) { frameRate = it }
+                    Spacer(Modifier.height(13.dp))
+                    Text("Format", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    ChoiceRow(listOf("MP4", "MOV"), format) { format = it }
+                    ToggleRow("Smart HDR", "Preserve expanded color information", smartHdr) { smartHdr = it }
+                    ProfileRow("▣", "Default save location", "Movies / SAJI CapCut 2") { }
+                }
+                "Storage" -> {
+                    SettingHeading("Storage management", "Local workspace usage preview")
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Panel).padding(14.dp)) {
+                        Column {
+                            Text("App storage", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Sample usage display", color = Muted, fontSize = 9.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Box(Modifier.fillMaxWidth().height(7.dp).clip(CircleShape).background(Panel2)) {
+                                Box(Modifier.fillMaxWidth(0.42f).height(7.dp).clip(CircleShape).background(Accent))
+                            }
+                            Spacer(Modifier.height(7.dp))
+                            Text("Cache  •  182 MB        Drafts  •  640 MB", color = Muted, fontSize = 9.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    ProfileRow("⌫", "Clear cache", "Temporary previews and thumbnails") { clearConfirmation = true }
+                    ProfileRow("▣", "Downloads", "Manage downloaded fonts and effects") { }
+                    ProfileRow("▤", "Export folder", "Movies / SAJI CapCut 2") { }
+                    if (clearConfirmation) {
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Panel2).padding(12.dp)) {
+                            Text("Clear temporary cache?", color = White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("This sample screen does not delete files yet. Storage controls will be connected later.", color = Muted, fontSize = 9.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SmallPill("Cancel", Muted) { clearConfirmation = false }
+                                SmallPill("Confirm", Accent) { clearConfirmation = false }
+                            }
+                        }
+                    }
+                }
+                "Privacy" -> {
+                    SettingHeading("Permissions", "Manage access used by editing tools")
+                    ProfileRow("▧", "Photos and videos", "Gallery access for importing media") { }
+                    ProfileRow("♫", "Microphone", "Voiceover and audio recording") { }
+                    ProfileRow("◉", "Camera", "Capture new photos and videos") { }
+                    ProfileRow("☁", "Cloud sync", "Optional project synchronization") { }
+                    SettingHeading("Privacy controls", "")
+                    ProfileRow("ⓘ", "Privacy policy", "How app data is handled") { }
+                    ProfileRow("♧", "Usage diagnostics", "Optional crash and performance reports") { }
+                }
+                else -> {
+                    SettingHeading("About SAJI CapCut 2", "Native video editing UI project")
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Panel).padding(20.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("SAJI", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp)
+                            Text("CapCut 2", color = White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("UI Foundation  •  Version 0.2.0", color = Muted, fontSize = 9.sp)
+                        }
+                    }
+                    ProfileRow("ⓘ", "Version information", "0.2.0 UI Foundation") { }
+                    ProfileRow("♡", "Feedback", "Send suggestions") { }
+                    ProfileRow("©", "Open-source licenses", "Third-party notices") { }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Text("SAJI CapCut 2  •  UI Foundation", color = Muted, fontSize = 10.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        }
     }
 }
-
 
 @Composable
 private fun ProjectsScreen(
