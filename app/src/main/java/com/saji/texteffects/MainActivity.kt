@@ -862,6 +862,7 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit, 
     var detail by remember(tool) { mutableStateOf("") }
     var intensity by remember(tool) { mutableFloatStateOf(0.55f) }
     var duration by remember(tool) { mutableFloatStateOf(0.5f) }
+    val context = LocalContext.current
     val options = toolOptions[tool] ?: toolOptions["More"].orEmpty()
     Column(
         Modifier.fillMaxWidth().height(292.dp).background(Panel).padding(horizontal = 13.dp, vertical = 9.dp)
@@ -922,7 +923,7 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit, 
                     "Canvas" -> FormatCanvasStudioControls(detail, true)
                     "More" -> when (detail) {
                         "AutoCut Studio" -> AutoCutStudioControls(detail)
-                        "Photo Editor" -> PhotoEditorStudioControls(detail, mediaUris.firstOrNull { uri -> isImageUri(LocalContext.current, uri) }, onAddMedia)
+                        "Photo Editor" -> PhotoEditorStudioControls(detail, mediaUris.firstOrNull { uri -> isImageUri(context, uri) }, onAddMedia)
                         "Teleprompter" -> TeleprompterStudioControls(detail)
                         else -> MoreToolsDetailedControls(detail)
                     }
@@ -2289,7 +2290,7 @@ private fun PhotoEditorStudioControls(detail: String, imageUri: Uri?, onAddMedia
             PhotoEditorEngine.loadBitmap(context, imageUri)
         }
     }
-    LaunchedEffect(sourceBitmap, tab, preset, intensity, warmth, vignette) {
+    LaunchedEffect(sourceBitmap, tab, preset, intensity, warmth, vignette, compare) {
         val source = sourceBitmap
         if (source != null && !compare) {
             val settings = PhotoEditSettings(
