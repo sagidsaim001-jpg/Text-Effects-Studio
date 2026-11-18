@@ -2,15 +2,16 @@
 
 Native Android text-effects editor built with Kotlin and Jetpack Compose.
 
-## Phase 2 preview
-- Video import and in-app playback
-- Live text overlay preview
-- Neon, 3D, Chrome, Glitch, Fire, Outline, Shadow and Retro styles
-- Animated Pulse, Bounce, Shake and Typewriter preview effects
-- Play/pause motion preview toggle
-- Clip-position scrubber and Start/Middle/End keyframe presets
-- Text scale and rotation controls
-- Effect intensity and text-size controls
+## Features
+- Import and preview a video
+- Live editable text overlay preview
+- Neon, 3D, Chrome, Glitch, Fire, Outline, Shadow and Retro text styles
+- Animated Pulse, Bounce, Shake and Typewriter effects
+- Animation preview toggle, clip-position scrubber and Start/Middle/End keyframe presets
+- Text scale, rotation, intensity and size controls
+- MP4 export using AndroidX Media3 Transformer
+- Canvas-rendered text overlay is composited into exported video frames
+- Exported videos are copied to Movies/SAJI Text Effects Studio in the device Gallery
 
 ## Build
 Open in Android Studio with JDK 17 and Android SDK 35, or run:
@@ -21,8 +22,8 @@ gradle assembleDebug
 
 GitHub Actions builds a debug APK and uploads it as an artifact on pushes and pull requests to `main`.
 
-## Current limitations
-The timeline and keyframe controls currently change the live preview only. They are not yet a frame-accurate video timeline. Exporting a rendered MP4 with the animated text overlay is not implemented yet, so the Export button remains disabled. The current preview is a development build, not a finished CapCut replacement.
+## Export notes
+The export engine uses Media3 Transformer and Media3 Effect. Export performance and supported input/output formats depend on the device's hardware codecs. On older or lower-memory phones, try a shorter clip first. The preview keyframe presets currently adjust the preview transform; they are not yet stored as a full multi-keyframe animation curve.
 
 ## Package
 `com.saji.texteffects`
