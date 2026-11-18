@@ -64,7 +64,7 @@ private val editorTools = listOf(
 )
 
 private val toolOptions = mapOf(
-    "Edit" to listOf("Split", "Speed", "Animation", "Style", "Crop", "Rotate", "Mirror", "Freeze", "Stabilize", "Retouch", "Mask", "Tracking", "Cutout", "Adjust", "Opacity", "Volume"),
+    "Edit" to listOf("Split", "Speed", "Animation", "Style", "Crop", "Rotate", "Mirror", "Freeze", "Keyframe", "Stabilize", "Retouch", "Mask", "Tracking", "Cutout", "Adjust", "Opacity", "Volume"),
     "Clip" to listOf("Replace", "Split", "Speed", "Volume", "Animation", "Adjust", "Mask", "Opacity", "Copy", "Reverse", "Freeze", "Keyframe", "Delete"),
     "Audio" to listOf("Sounds", "Sound effects", "Extract audio", "Voiceover", "Text to speech", "Beats", "Volume", "Fade", "Voice effects", "Noise reduction"),
     "Text" to listOf("Add text", "Text templates", "Auto captions", "Fonts", "Style", "Effects", "Animation", "Bubbles", "Text to speech", "Tracking"),
@@ -545,7 +545,7 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
     var duration by remember(tool) { mutableFloatStateOf(0.5f) }
     val options = toolOptions[tool] ?: toolOptions["More"].orEmpty()
     Column(
-        Modifier.fillMaxWidth().height(192.dp).background(Panel).padding(horizontal = 13.dp, vertical = 9.dp)
+        Modifier.fillMaxWidth().height(292.dp).background(Panel).padding(horizontal = 13.dp, vertical = 9.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (detail.isNotEmpty()) {
@@ -557,57 +557,39 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
             }
             Text("×", color = Muted, fontSize = 23.sp, modifier = Modifier.clickable { onClose() })
         }
-        Spacer(Modifier.height(9.dp))
-        if (detail.isEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    TrayOption(option) {
-                        when (option) {
-                            "Add overlay" -> onAddMedia()
-                            "Add text" -> detail = "Text editor"
-                            else -> detail = option
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (detail.isEmpty()) {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        options.forEach { option ->
+                            TrayOption(option) {
+                                when (option) {
+                                    "Add overlay" -> onAddMedia()
+                                    "Add text" -> detail = "Text editor"
+                                    else -> detail = option
+                                }
+                            }
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Swipe to explore all " + tool.lowercase() + " tools", color = Muted, fontSize = 10.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SmallPill("Reset", Muted)
+                        SmallPill("Favorites ☆", AccentBlue)
+                        Spacer(Modifier.weight(1f))
+                        SmallPill("Choose a tool  ›", Accent)
+                    }
                 }
+            } else {
+                ToolDetailControls(tool, detail)
             }
-            Spacer(Modifier.height(9.dp))
-            Text("Swipe to explore all " + tool.lowercase() + " tools", color = Muted, fontSize = 10.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SmallPill("Reset", Muted)
-                SmallPill("Favorites ☆", AccentBlue)
-                Spacer(Modifier.weight(1f))
-                SmallPill("Apply  ✓", Accent)
-            }
-        } else {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                val names = when (detail) {
-                    "Speed" -> listOf("Normal", "Curve", "Montage", "Hero", "Bullet")
-                    "Animation" -> listOf("In", "Out", "Combo", "Loop")
-                    "Fonts" -> listOf("Trending", "Basic", "Handwriting", "Serif", "Display")
-                    "Effects", "Video effects", "Body effects" -> listOf("Trending", "Pro", "Basic", "Lens", "Retro")
-                    "Filters" -> listOf("Portrait", "Movie", "Retro", "Food", "Night")
-                    "Format", "Ratio" -> listOf("9:16", "16:9", "1:1", "4:5", "3:4")
-                    else -> listOf("Basic", "Popular", "Trending", "Favorites")
-                }
-                names.forEach { SmallPill(it, if (it == names.first()) Accent else Muted) }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Strength", color = White, fontSize = 10.sp, modifier = Modifier.width(66.dp))
-                Slider(value = intensity, onValueChange = { intensity = it }, modifier = Modifier.weight(1f))
-                Text((intensity * 100).toInt().toString(), color = Muted, fontSize = 10.sp, modifier = Modifier.width(30.dp))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Duration", color = White, fontSize = 10.sp, modifier = Modifier.width(66.dp))
-                Slider(value = duration, onValueChange = { duration = it }, modifier = Modifier.weight(1f))
-                Text((duration * 10).toInt().toString() + "s", color = Muted, fontSize = 10.sp, modifier = Modifier.width(30.dp))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SmallPill("Reset", Muted)
-                Spacer(Modifier.weight(1f))
-                SmallPill("Apply  ✓", Accent)
-            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SmallPill("Reset", Muted) { intensity = 0.55f; duration = 0.5f }
+            Spacer(Modifier.weight(1f))
+            SmallPill("Apply  ✓", Accent)
         }
     }
 }
