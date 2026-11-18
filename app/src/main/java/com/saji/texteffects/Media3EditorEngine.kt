@@ -41,6 +41,7 @@ data class VideoRenderSettings(
     val rotationDegrees: Float = 0f,
     val brightness: Float = 0f,
     val contrast: Float = 0f,
+    val saturation: Float = 0f,
     val filter: String = "Original",
     val aspectRatio: String = "Original",
     val resolutionShortSide: Int = 1080,
