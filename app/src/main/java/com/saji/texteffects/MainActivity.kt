@@ -778,6 +778,8 @@ private fun ToolTray(tool: String, onClose: () -> Unit, onAddMedia: () -> Unit) 
                 when (tool) {
                     "Text" -> TextStudioControls(detail)
                     "Audio" -> AudioStudioControls(detail)
+                    "Transitions" -> TransitionsStudioControls(detail)
+                    "Filters" -> FiltersStudioControls(detail)
                     else -> ToolDetailControls(tool, detail)
                 }
             }
@@ -913,6 +915,97 @@ private fun AudioStudioControls(detail: String) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TransitionsStudioControls(detail: String) {
+    var selected by remember(detail) { mutableStateOf("Smooth zoom") }
+    var duration by remember { mutableFloatStateOf(0.6f) }
+    var direction by remember { mutableStateOf("In") }
+    val presets = when (detail) {
+        "Camera" -> listOf("Camera push", "Whip pan", "Handheld", "Dolly", "Orbit", "Pull focus")
+        "MG" -> listOf("Spin", "Flip", "Cube", "Glitch", "Warp", "3D rotate")
+        "Blur" -> listOf("Motion blur", "Zoom blur", "Radial blur", "Soft blur", "Directional")
+        "Slide" -> listOf("Slide left", "Slide right", "Slide up", "Slide down", "Push", "Wipe")
+        "Mask" -> listOf("Circle", "Split", "Diagonal", "Heart", "Iris", "Shape reveal")
+        "Split" -> listOf("Vertical", "Horizontal", "Cross", "Four panels", "Shutter")
+        "Light" -> listOf("Flash", "Light leak", "Glow wash", "Flicker", "Lens flare")
+        "3D" -> listOf("Cube", "Page turn", "Flip", "Depth zoom", "Perspective")
+        "Zoom" -> listOf("Smooth zoom", "Zoom in", "Zoom out", "Bounce zoom", "Crash zoom")
+        else -> listOf("Dissolve", "Fade", "Mix", "Cross blur", "Dip to black", "Dip to white")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("TRANSITION PREVIEW", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF214A5B), Color(0xFF51406E), Color(0xFF9B5B59)))), contentAlignment = Alignment.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("CLIP A", color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("✦", color = Accent, fontSize = 20.sp)
+                Text("CLIP B", color = White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(selected, color = White.copy(alpha = 0.8f), fontSize = 8.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp))
+        }
+        Spacer(Modifier.height(5.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            listOf("In", "Out", "Both").forEach { SmallPill(it, if (direction == it) Accent else Muted) { direction = it } }
+            Spacer(Modifier.weight(1f))
+            Text("Direction", color = Muted, fontSize = 9.sp)
+        }
+        Text("Duration  " + String.format("%.1f", 0.2f + duration * 2.8f) + "s", color = White, fontSize = 10.sp)
+        Slider(value = duration, onValueChange = { duration = it })
+        Text("PRESETS  •  " + detail.uppercase(), color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        presets.chunked(3).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { item ->
+                    Box(Modifier.weight(1f).padding(bottom = 5.dp).clip(RoundedCornerShape(8.dp)).background(if (selected == item) Accent.copy(alpha = 0.18f) else Panel2).clickable { selected = item }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(item, color = if (selected == item) Accent else White, fontSize = 9.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FiltersStudioControls(detail: String) {
+    var selected by remember(detail) { mutableStateOf("Cinematic") }
+    var intensity by remember { mutableFloatStateOf(0.75f) }
+    var filterGroup by remember { mutableStateOf("Trending") }
+    val filters = when (filterGroup) {
+        "Portrait" -> listOf("Natural", "Soft skin", "Warm face", "Studio", "Glow", "Classic")
+        "Movie" -> listOf("Cinematic", "Teal orange", "Film 01", "Film 02", "Noir", "Drama")
+        "Retro" -> listOf("Vintage", "1998", "Fade", "Disposable", "VHS", "Dust")
+        "Food" -> listOf("Fresh", "Sweet", "Warm", "Juicy", "Bright", "Cafe")
+        "Night" -> listOf("Night glow", "Neon city", "Low light", "Blue hour", "Moonlight")
+        "Landscape" -> listOf("Vivid", "Nature", "Golden hour", "Ocean", "Forest")
+        "Mono" -> listOf("B&W", "Silver", "Matte mono", "High contrast")
+        else -> listOf("Cinematic", "Warm", "Cool", "Clean", "Vivid", "Soft")
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text("FILTER PREVIEW", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(Color(0xFF254A58), Color(0xFFB47755), Color(0xFF43385D)))), contentAlignment = Alignment.Center) {
+            Text(selected.uppercase(), color = White, fontSize = 17.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+        }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            listOf("Trending", "Portrait", "Movie", "Retro", "Food", "Night", "Landscape", "Mono").forEach {
+                SmallPill(it, if (filterGroup == it) Accent else Muted) { filterGroup = it; selected = when (it) { "Movie" -> "Cinematic"; "Retro" -> "Vintage"; "Mono" -> "B&W"; else -> "Natural" } }
+            }
+        }
+        filters.chunked(3).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { item ->
+                    Box(Modifier.weight(1f).padding(bottom = 5.dp).clip(RoundedCornerShape(8.dp)).background(if (selected == item) Accent.copy(alpha = 0.18f) else Panel2).clickable { selected = item }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Text(item, color = if (selected == item) Accent else White, fontSize = 9.sp, textAlign = TextAlign.Center)
+                    }
+                }
+                repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        Text("Intensity  " + (intensity * 100).toInt() + "%", color = White, fontSize = 10.sp)
+        Slider(value = intensity, onValueChange = { intensity = it })
     }
 }
 
